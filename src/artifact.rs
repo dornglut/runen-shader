@@ -4,7 +4,10 @@ use std::sync::Arc;
 use crate::identity::{
     ShaderModuleIdentity, ShaderPackageIdentity, ShaderSourceRevision, ShaderSourceUnitIdentity,
 };
-use crate::input::{ShaderCompilationInputIdentity, ShaderCompilationInvocation};
+use crate::input::{
+    ShaderCompilationInputIdentity, ShaderCompilationInvocation, ShaderWeslFeatureValue,
+    ShaderWeslModuleIdentity, ShaderWeslModulePath,
+};
 use crate::profile::{ShaderCompilerRealization, ShaderFrontendProfile};
 use crate::source::ShaderSourceSnapshot;
 
@@ -12,7 +15,7 @@ use crate::source::ShaderSourceSnapshot;
 ///
 /// This identity deliberately selects no digest or serialized representation. Equality is defined
 /// structurally by the exact closed compilation-input identity and compiler realization identity.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct ShaderArtifactIdentity {
     compilation_input: ShaderCompilationInputIdentity,
     realization: ShaderCompilerRealization,
@@ -28,26 +31,26 @@ impl ShaderArtifactIdentity {
     }
 
     /// Returns the compilation-input identity participating in this artifact identity.
-    pub const fn compilation_input(self) -> ShaderCompilationInputIdentity {
-        self.compilation_input
+    pub fn compilation_input(&self) -> ShaderCompilationInputIdentity {
+        self.compilation_input.clone()
     }
 
     /// Returns the frontend-profile identity participating in this artifact identity.
-    pub const fn profile(self) -> ShaderFrontendProfile {
+    pub const fn profile(&self) -> ShaderFrontendProfile {
         self.compilation_input.profile()
     }
 
     /// Returns the compiler-realization identity participating in this artifact identity.
-    pub const fn realization(self) -> ShaderCompilerRealization {
+    pub const fn realization(&self) -> ShaderCompilerRealization {
         self.realization
     }
 }
 
-/// RunenShader-owned provenance for the exact source and invocation that formed an artifact.
+/// RunenShader-owned provenance for the exact closed input and invocation that formed an artifact.
 ///
 /// The closed compilation-input identity is the single authority for package/module/source/profile
 /// participation; provenance does not duplicate those fields into independently mutable state.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct ShaderArtifactProvenance {
     compilation_input: ShaderCompilationInputIdentity,
     realization: ShaderCompilerRealization,
@@ -63,38 +66,59 @@ impl ShaderArtifactProvenance {
     }
 
     /// Returns the exact closed compilation-input identity.
-    pub const fn compilation_input(self) -> ShaderCompilationInputIdentity {
-        self.compilation_input
+    pub fn compilation_input(&self) -> ShaderCompilationInputIdentity {
+        self.compilation_input.clone()
     }
 
     /// Returns the logical package identity.
-    pub const fn package(self) -> ShaderPackageIdentity {
+    pub const fn package(&self) -> ShaderPackageIdentity {
         self.compilation_input.package()
     }
 
-    /// Returns the logical root-module identity.
-    pub const fn root_module(self) -> ShaderModuleIdentity {
+    /// Returns the logical root/main module identity.
+    pub const fn root_module(&self) -> ShaderModuleIdentity {
         self.compilation_input.root_module()
     }
 
-    /// Returns the logical source-unit identity.
-    pub const fn source_unit(self) -> ShaderSourceUnitIdentity {
+    /// Returns the logical root/main source-unit identity.
+    ///
+    /// For exact WGSL this is the sole source. For WESL this identifies the explicit main-module
+    /// source; use [`Self::wesl_modules`] for complete participating-source provenance.
+    pub const fn source_unit(&self) -> ShaderSourceUnitIdentity {
         self.compilation_input.source_unit()
     }
 
-    /// Returns the exact source revision.
-    pub const fn source_revision(self) -> ShaderSourceRevision {
+    /// Returns the exact root/main source revision.
+    ///
+    /// For exact WGSL this is the sole revision. For WESL use [`Self::wesl_modules`] for complete
+    /// participating-source provenance.
+    pub const fn source_revision(&self) -> ShaderSourceRevision {
         self.compilation_input.source_revision()
     }
 
     /// Returns the frontend profile.
-    pub const fn profile(self) -> ShaderFrontendProfile {
+    pub const fn profile(&self) -> ShaderFrontendProfile {
         self.compilation_input.profile()
     }
 
     /// Returns the compiler realization.
-    pub const fn realization(self) -> ShaderCompilerRealization {
+    pub const fn realization(&self) -> ShaderCompilerRealization {
         self.realization
+    }
+
+    /// Returns the explicit WESL main-module resolution key when this provenance is WESL-shaped.
+    pub fn wesl_root_resolution_path(&self) -> Option<&ShaderWeslModulePath> {
+        self.compilation_input.wesl_root_resolution_path()
+    }
+
+    /// Returns deterministic structural evidence for every admitted WESL module, including root.
+    pub fn wesl_modules(&self) -> Option<&[ShaderWeslModuleIdentity]> {
+        self.compilation_input.wesl_modules()
+    }
+
+    /// Returns deterministic explicit WESL conditional-feature evidence.
+    pub fn wesl_features(&self) -> Option<&[ShaderWeslFeatureValue]> {
+        self.compilation_input.wesl_features()
     }
 }
 
@@ -181,7 +205,7 @@ impl ShaderMappedSourceRange {
         self.source_unit
     }
 
-    /// Returns the exact source revision.
+    /// Returns the logical source revision.
     pub const fn revision(self) -> ShaderSourceRevision {
         self.revision
     }
@@ -237,8 +261,9 @@ impl ExactWgslSourceMap {
 
 /// Accepted canonical shader artifact data.
 ///
-/// Ordinary callers cannot construct this type directly. The pinned exact-WGSL compiler
-/// realization forms it only after successful profile validation.
+/// Ordinary callers cannot construct this type directly. The currently implemented pinned
+/// exact-WGSL realization forms it only after successful profile validation. Later transformed
+/// realizations may extend the artifact mapping representation through separately accepted work.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ShaderArtifact {
     pub(crate) identity: ShaderArtifactIdentity,
@@ -249,8 +274,8 @@ pub struct ShaderArtifact {
 
 impl ShaderArtifact {
     /// Returns the deterministic artifact identity.
-    pub const fn identity(&self) -> ShaderArtifactIdentity {
-        self.identity
+    pub fn identity(&self) -> ShaderArtifactIdentity {
+        self.identity.clone()
     }
 
     /// Returns exact canonical WGSL bytes as UTF-8 text.
@@ -264,6 +289,8 @@ impl ShaderArtifact {
     }
 
     /// Returns the exact-WGSL identity source map.
+    ///
+    /// Only the accepted exact-WGSL realization constructs artifacts in the current implementation.
     pub const fn source_map(&self) -> ExactWgslSourceMap {
         self.source_map
     }
@@ -274,7 +301,10 @@ mod tests {
     use crate::identity::{
         ShaderModuleIdentity, ShaderPackageIdentity, ShaderSourceRevision, ShaderSourceUnitIdentity,
     };
-    use crate::input::ShaderCompilationInput;
+    use crate::input::{
+        ShaderCompilationInput, ShaderWeslFeatureValue, ShaderWeslModuleBinding,
+        ShaderWeslModulePath,
+    };
     use crate::profile::ShaderCompilerRealization;
 
     use super::*;
@@ -292,6 +322,18 @@ mod tests {
         ShaderCompilationInvocation::new(input, ShaderCompilerRealization::Naga3001ExactWgslGateV1)
     }
 
+    fn wesl_binding(path: &str, module: u64, unit: u64) -> ShaderWeslModuleBinding {
+        ShaderWeslModuleBinding::new(
+            ShaderWeslModulePath::new(path),
+            ShaderModuleIdentity::try_from_raw(module).unwrap(),
+            ShaderSourceSnapshot::new(
+                ShaderSourceUnitIdentity::try_from_raw(unit).unwrap(),
+                ShaderSourceRevision::try_from_raw(1).unwrap(),
+                "fn helper() {}",
+            ),
+        )
+    }
+
     #[test]
     fn artifact_identity_and_provenance_are_deterministic_from_invocation() {
         let left = sample_invocation("// exact\r\nfn helper() {}\n");
@@ -305,6 +347,41 @@ mod tests {
             ShaderArtifactProvenance::for_invocation(&left),
             ShaderArtifactProvenance::for_invocation(&right)
         );
+    }
+
+    #[test]
+    fn provenance_can_expose_complete_wesl_input_evidence_without_a_realization() {
+        let input = ShaderCompilationInput::wesl_composition(
+            ShaderPackageIdentity::try_from_raw(40).unwrap(),
+            wesl_binding("package::main", 41, 51),
+            vec![
+                wesl_binding("package::math", 42, 52),
+                wesl_binding("package::util", 43, 53),
+            ],
+            vec![ShaderWeslFeatureValue::new("debug", true)],
+        );
+        let invocation = ShaderCompilationInvocation::new(
+            input,
+            ShaderCompilerRealization::Naga3001ExactWgslGateV1,
+        );
+        let provenance = ShaderArtifactProvenance::for_invocation(&invocation);
+
+        assert_eq!(
+            provenance.profile(),
+            ShaderFrontendProfile::WeslComposition20260822
+        );
+        assert_eq!(provenance.root_module().diagnostic_raw(), 41);
+        assert_eq!(provenance.source_unit().diagnostic_raw(), 51);
+        assert_eq!(
+            provenance.wesl_root_resolution_path().unwrap().as_str(),
+            "package::main"
+        );
+        let modules = provenance.wesl_modules().unwrap();
+        assert_eq!(modules.len(), 3);
+        assert_eq!(modules[0].source_unit().diagnostic_raw(), 51);
+        assert_eq!(modules[1].source_unit().diagnostic_raw(), 52);
+        assert_eq!(modules[2].source_unit().diagnostic_raw(), 53);
+        assert_eq!(provenance.wesl_features().unwrap()[0].name(), "debug");
     }
 
     #[test]

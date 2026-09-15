@@ -22,11 +22,12 @@ enum GateParserDecision {
     Invariant,
 }
 
-/// Stateful authority for the pinned exact-WGSL compiler realization.
+/// Stateful authority for RunenShader compiler realization dispatch.
 ///
-/// The compiler records the exact bytes first observed for each logical
-/// `(source unit, revision)` pair. This is instance state rather than semantic
-/// identity or a process-global registry.
+/// The compiler records the exact bytes first observed for every logical
+/// `(source unit, revision)` pair in one admitted closed input before realization dispatch. This is
+/// instance state rather than semantic identity or a process-global registry. The only implemented
+/// compiler realization remains the pinned exact-WGSL Naga path.
 #[derive(Debug, Default)]
 pub struct ShaderCompiler {
     source_bindings: HashMap<(ShaderSourceUnitIdentity, ShaderSourceRevision), Arc<str>>,
@@ -38,24 +39,24 @@ impl ShaderCompiler {
         Self::default()
     }
 
-    /// Compiles one explicit invocation using the pinned Naga realization.
+    /// Compiles one explicit invocation using an accepted implemented realization.
     pub fn compile(&mut self, invocation: &ShaderCompilationInvocation) -> ShaderCompilationResult {
+        if let Some(rejected) = self.bind_invocation_sources(invocation) {
+            return Ok(rejected);
+        }
+
         let source = invocation.input().source();
         let subject = ShaderSourceSubject::new(source.source_unit(), source.revision());
-        let binding = (source.source_unit(), source.revision());
 
-        if let Some(previous) = self.source_bindings.get(&binding) {
-            if previous.as_ref() != source.text() {
-                return Ok(ShaderCompilationOutcome::Rejected(vec![
-                    ShaderDiagnostic::new(
-                        "the source revision is already bound to different exact source bytes",
-                    )
-                    .with_source(subject, None),
-                ]));
-            }
-        } else {
-            self.source_bindings
-                .insert(binding, Arc::clone(&source.source));
+        if invocation.input().profile() == ShaderFrontendProfile::WeslComposition20260822
+            && invocation.realization() == ShaderCompilerRealization::Naga3001ExactWgslGateV1
+        {
+            return Ok(ShaderCompilationOutcome::Unsupported(vec![
+                ShaderDiagnostic::new(
+                    "the selected compiler realization does not provide accepted coverage for the WESL composition profile",
+                )
+                .with_source(subject, None),
+            ]));
         }
 
         if invocation.input().profile() != ShaderFrontendProfile::WgslExact20260817
@@ -147,6 +148,49 @@ impl ShaderCompiler {
             provenance: ShaderArtifactProvenance::for_invocation(invocation),
             source_map: ExactWgslSourceMap::for_source(source),
         }))
+    }
+
+    fn bind_invocation_sources(
+        &mut self,
+        invocation: &ShaderCompilationInvocation,
+    ) -> Option<ShaderCompilationOutcome> {
+        let input = invocation.input();
+        let sources = if let Some(modules) = input.wesl_modules() {
+            modules
+                .iter()
+                .map(|module| module.source())
+                .collect::<Vec<_>>()
+        } else {
+            vec![input.source()]
+        };
+
+        let mut pending =
+            HashMap::<(ShaderSourceUnitIdentity, ShaderSourceRevision), Arc<str>>::new();
+
+        for source in sources {
+            let subject = ShaderSourceSubject::new(source.source_unit(), source.revision());
+            let binding = (source.source_unit(), source.revision());
+            let previous = self
+                .source_bindings
+                .get(&binding)
+                .or_else(|| pending.get(&binding));
+
+            if let Some(previous) = previous {
+                if previous.as_ref() != source.text() {
+                    return Some(ShaderCompilationOutcome::Rejected(vec![
+                        ShaderDiagnostic::new(
+                            "the source revision is already bound to different exact source bytes",
+                        )
+                        .with_source(subject, None),
+                    ]));
+                }
+            } else {
+                pending.insert(binding, Arc::clone(&source.source));
+            }
+        }
+
+        self.source_bindings.extend(pending);
+        None
     }
 }
 
@@ -272,7 +316,7 @@ mod tests {
     use crate::identity::{
         ShaderModuleIdentity, ShaderPackageIdentity, ShaderSourceRevision, ShaderSourceUnitIdentity,
     };
-    use crate::input::ShaderCompilationInput;
+    use crate::input::{ShaderCompilationInput, ShaderWeslModuleBinding, ShaderWeslModulePath};
     use crate::source::ShaderSourceSnapshot;
 
     fn invocation(source_unit: u64, revision: u64, source: &str) -> ShaderCompilationInvocation {
@@ -285,6 +329,39 @@ mod tests {
                     ShaderSourceRevision::try_from_raw(revision).unwrap(),
                     source,
                 ),
+            ),
+            ShaderCompilerRealization::Naga3001ExactWgslGateV1,
+        )
+    }
+
+    fn wesl_module(
+        path: &str,
+        module: u64,
+        source_unit: u64,
+        revision: u64,
+        source: &str,
+    ) -> ShaderWeslModuleBinding {
+        ShaderWeslModuleBinding::new(
+            ShaderWeslModulePath::new(path),
+            ShaderModuleIdentity::try_from_raw(module).unwrap(),
+            ShaderSourceSnapshot::new(
+                ShaderSourceUnitIdentity::try_from_raw(source_unit).unwrap(),
+                ShaderSourceRevision::try_from_raw(revision).unwrap(),
+                source,
+            ),
+        )
+    }
+
+    fn wesl_invocation(
+        root: ShaderWeslModuleBinding,
+        additional: Vec<ShaderWeslModuleBinding>,
+    ) -> ShaderCompilationInvocation {
+        ShaderCompilationInvocation::new(
+            ShaderCompilationInput::wesl_composition(
+                ShaderPackageIdentity::try_from_raw(700).unwrap(),
+                root,
+                additional,
+                vec![],
             ),
             ShaderCompilerRealization::Naga3001ExactWgslGateV1,
         )
@@ -559,6 +636,71 @@ mod tests {
             .compile(&invocation(3, 4, "fn helper() {}"))
             .unwrap();
         assert!(matches!(rebound, ShaderCompilationOutcome::Rejected(_)));
+    }
+
+    #[test]
+    fn multi_source_binding_is_atomic_when_a_later_wesl_snapshot_conflicts() {
+        let mut compiler = ShaderCompiler::new();
+        let seeded = compiler
+            .compile(&invocation(810, 1, "fn seeded() {}"))
+            .unwrap();
+        assert!(matches!(seeded, ShaderCompilationOutcome::Accepted(_)));
+
+        let wesl = wesl_invocation(
+            wesl_module("package::main", 811, 811, 1, "fn root() {}"),
+            vec![wesl_module(
+                "package::z_conflict",
+                812,
+                810,
+                1,
+                "fn conflicting() {}",
+            )],
+        );
+        let result = compiler.compile(&wesl).unwrap();
+        assert!(matches!(result, ShaderCompilationOutcome::Rejected(_)));
+
+        // The unseen root from the rejected multi-source input must not have been partially bound.
+        let root_reuse = compiler
+            .compile(&invocation(811, 1, "fn different_root() {}"))
+            .unwrap();
+        assert!(matches!(root_reuse, ShaderCompilationOutcome::Accepted(_)));
+    }
+
+    #[test]
+    fn all_wesl_sources_bind_before_unimplemented_realization_is_unsupported() {
+        let mut compiler = ShaderCompiler::new();
+        let wesl = wesl_invocation(
+            wesl_module("package::main", 820, 820, 1, "fn root() {}"),
+            vec![wesl_module("package::math", 821, 821, 1, "fn helper() {}")],
+        );
+
+        let result = compiler.compile(&wesl).unwrap();
+        let ShaderCompilationOutcome::Unsupported(diagnostics) = result else {
+            panic!("expected WESL request without an accepted realization to be unsupported");
+        };
+        assert_eq!(diagnostics.len(), 1);
+        assert_eq!(
+            diagnostics[0].subject(),
+            Some(ShaderSourceSubject::new(
+                ShaderSourceUnitIdentity::try_from_raw(820).unwrap(),
+                ShaderSourceRevision::try_from_raw(1).unwrap(),
+            ))
+        );
+
+        let root_rebound = compiler
+            .compile(&invocation(820, 1, "fn changed_root() {}"))
+            .unwrap();
+        assert!(matches!(
+            root_rebound,
+            ShaderCompilationOutcome::Rejected(_)
+        ));
+        let dependency_rebound = compiler
+            .compile(&invocation(821, 1, "fn changed_helper() {}"))
+            .unwrap();
+        assert!(matches!(
+            dependency_rebound,
+            ShaderCompilationOutcome::Rejected(_)
+        ));
     }
 
     #[test]

@@ -1,9 +1,10 @@
 //! RunenShader defines reusable shader-source and shader-compilation semantics.
 //!
 //! The normative contract is repository-owned under `spec/`. The public Rust surface implements
-//! the exact-WGSL semantic data boundary and its pinned Naga 30.0.1 compiler realization. Naga
-//! remains a private implementation detail: accepted artifacts preserve the original source
-//! bytes and contain no Naga IR or reflection data.
+//! the exact-WGSL semantic data boundary and its pinned Naga 30.0.1 compiler realization, plus the
+//! closed multi-source input/provenance evidence required by the accepted WESL composition profile.
+//! No WESL compiler realization is implemented yet. Compiler-private IR and reflection remain
+//! non-authoritative implementation details.
 
 mod artifact;
 mod compiler;
@@ -24,6 +25,8 @@ pub use identity::{
 };
 pub use input::{
     ShaderCompilationInput, ShaderCompilationInputIdentity, ShaderCompilationInvocation,
+    ShaderWeslFeatureValue, ShaderWeslModuleBinding, ShaderWeslModuleIdentity,
+    ShaderWeslModulePath,
 };
 pub use outcome::{
     ShaderCompilationOutcome, ShaderCompilationResult, ShaderDiagnostic, ShaderInvariantError,
