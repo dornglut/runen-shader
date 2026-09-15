@@ -353,7 +353,10 @@ mod tests {
             source_map: ExactWgslSourceMap::for_source(source),
         };
 
-        assert_eq!(artifact.canonical_wgsl().as_bytes(), source.text().as_bytes());
+        assert_eq!(
+            artifact.canonical_wgsl().as_bytes(),
+            source.text().as_bytes()
+        );
         assert_eq!(artifact.source_map().byte_len(), source.byte_len());
     }
 }

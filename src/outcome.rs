@@ -178,6 +178,9 @@ mod tests {
 
         assert_eq!(diagnostic.subject(), Some(subject));
         assert_eq!(diagnostic.range(), Some(range));
-        assert_eq!(diagnostic.realization_detail(), Some("private compiler detail"));
+        assert_eq!(
+            diagnostic.realization_detail(),
+            Some("private compiler detail")
+        );
     }
 }

@@ -38,7 +38,10 @@ impl ShaderCompilerRealization {
     pub const fn supports(self, profile: ShaderFrontendProfile) -> bool {
         matches!(
             (self, profile),
-            (Self::Naga3001ExactWgsl, ShaderFrontendProfile::WgslExact20260817)
+            (
+                Self::Naga3001ExactWgsl,
+                ShaderFrontendProfile::WgslExact20260817
+            )
         )
     }
 }
