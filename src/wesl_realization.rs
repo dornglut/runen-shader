@@ -265,7 +265,11 @@ fn preflight_module_syntax(
     syntax: &TranslationUnit,
 ) -> Option<ShaderCompilationOutcome> {
     for import in &syntax.imports {
-        if import.attributes.iter().any(is_conditional_attribute) {
+        if import
+            .attributes
+            .iter()
+            .any(|attribute| is_conditional_attribute(attribute.node()))
+        {
             return Some(ShaderCompilationOutcome::Rejected(vec![source_diagnostic(
                 binding,
                 "conditional attributes on WESL import statements are outside the accepted profile",
