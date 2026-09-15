@@ -1,9 +1,10 @@
 # RunenShader semantic model
 
-Status: **Accepted bootstrap semantic contract**.
+Status: **Accepted core semantic contract**.
 
-This document normalizes the semantic source-to-artifact boundary. It does not
-select a concrete shader frontend or compiler implementation.
+This document normalizes the semantic source-to-artifact boundary. Concrete
+frontend profiles and compiler realizations specialize this generic model through
+separately accepted normative specifications under `spec/`.
 
 ## 1. Authority
 
@@ -124,8 +125,10 @@ realization contract fixes those defaults sufficiently that the same identified
 realization/configuration has one reproducible meaning. Environment-dependent or
 host-dependent defaults MUST NOT silently affect artifact semantics.
 
-The first concrete frontend profile and compiler realization are **Open**. No
-frontend is supported by this bootstrap contract alone.
+The first concrete frontend profile and initial compiler-realization contract are
+accepted by [the exact WGSL frontend profile](frontend-wgsl.md). That accepted
+selection specializes this model; it does not by itself establish shipped
+implementation or conformance support.
 
 ## 6. Closed compilation input
 
@@ -334,13 +337,16 @@ composition, application recovery, last-known-good behavior, filesystem
 watching, and hot-reload activation remain outside RunenShader semantic
 authority.
 
-## 15. Explicitly unresolved product decisions
+## 15. Product decision state
+
+The first concrete frontend profile and initial compiler-realization contract are
+**Accepted** by [the exact WGSL frontend profile](frontend-wgsl.md). Their
+acceptance selects semantics and realization requirements; implementation and
+conformance remain separately required before support is claimed.
 
 The following are **Open** unless marked otherwise. Their unresolved state does
 not authorize arbitrary incompatible implementation:
 
-- first concrete frontend profile;
-- first compiler realization and dependency selection;
 - public Rust API/type representation of the accepted semantic concepts;
 - concrete source-map representation and stable diagnostic-code vocabulary;
 - artifact identity encoding and any digest algorithm;
