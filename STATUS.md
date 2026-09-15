@@ -10,11 +10,12 @@ pull-request, workflow, and priority state.
 | --- | --- |
 | repository identity and licensing authority | established |
 | normative source/toolchain semantic model | established under `spec/` |
-| first frontend profile contract | exact WGSL profile selected; implementation and conformance not yet accepted |
+| dependency-free public semantic data kernel | implemented for identities, exact snapshots, closed exact-WGSL inputs, artifact evidence, source mapping, diagnostics, and outcome types |
+| first frontend profile contract | exact WGSL profile selected; compiler implementation and conformance not yet accepted |
 | repository-owned merge-readiness validation | established |
-| public shader-compilation Rust API | not implemented |
+| public shader-compilation entry point | not implemented |
 | concrete frontend implementation | none accepted |
-| canonical WGSL artifact implementation | not implemented |
+| canonical WGSL artifact formation by a compiler | not implemented |
 | WESL composition support | not accepted; next composition candidate |
 | Slang support | deferred pending stronger WebGPU/WGSL maturity or demonstrated need |
 | persistent artifact/cache format | none accepted |
@@ -23,18 +24,18 @@ pull-request, workflow, and priority state.
 
 ## Maturity constraints
 
-The semantic specification and exact WGSL profile define what future
-implementations must preserve; they do not themselves prove a compiler path.
-Selecting a profile or realization contract is not the same as shipping frontend
-support.
+The semantic specification and exact WGSL profile define what compiler
+implementations must preserve. The public semantic data kernel realizes those
+non-compiler contracts, but selecting a profile/realization and exposing its data
+model is not the same as shipping frontend support.
 
 RunenShader does not support WESL, Slang, a generic frontend plugin mechanism,
 filesystem discovery, package-registry resolution, source watching, hot reload,
 or downstream GPU admission merely because those concerns have been evaluated.
 
-RunenShader currently makes no repository MSRV claim. The first implementation
-slice must resolve the selected dependency set and prove any claimed minimum Rust
-version before that claim becomes repository authority.
+RunenShader currently makes no repository MSRV claim. The first dependency-bearing
+compiler slice must resolve the selected dependency set and prove any claimed
+minimum Rust version before that claim becomes repository authority.
 
 ## Acceptance model
 
