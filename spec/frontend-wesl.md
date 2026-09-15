@@ -84,6 +84,13 @@ the WESL main module and how their names survive translation. They do not grant
 RunenShader GPU-device, pipeline-creation, binding, or execution authority;
 downstream admission remains independently owned.
 
+**WESL-LANG-008 — Accepted.** Conditional attributes on import statements are
+outside this initial profile. The pinned WESL revision is not internally
+unambiguous on whether `@if`, `@elif`, or `@else` decorates imports as accepted
+conditional-translation semantics. RunenShader therefore fails closed rather
+than selecting one interpretation. A later pinned profile revision may admit
+conditional imports when the external semantics are unambiguous.
+
 ## 3. Closed package, module, and source input
 
 The generic RunenShader package/module/source identities remain authoritative.
@@ -321,16 +328,17 @@ RunenShader evidence.
 single-module WESL, multi-module relative imports, package-root-relative imports,
 aliases/collections, public/private/package visibility and main-module
 pipeline exposure, a cycle that is valid under pinned WESL semantics,
-conditional imports or declarations where accepted by the pinned combination,
-and explicit true/false feature selections.
+conditional translation on unambiguously admitted declaration/directive
+positions, and explicit true/false feature selections.
 
 **WESL-CONF-003 — Accepted.** Negative conformance MUST independently cover at
 least unresolved imports that are semantically required, forbidden
 external-package references, ambiguous closed resolution, missing referenced
-conditional features, invalid WESL syntax or semantics, and authored WGSL
-constructs or extensions outside the pinned underlying WGSL language baseline.
-A separate fail-closed fixture MUST prove that realization output outside
-`WESL-ART-002` can never be published as `Accepted`.
+conditional features, conditional attributes on import statements, invalid WESL
+syntax or semantics, and authored WGSL constructs or extensions outside the
+pinned underlying WGSL language baseline. A separate fail-closed fixture MUST
+prove that realization output outside `WESL-ART-002` can never be published as
+`Accepted`.
 
 **WESL-CONF-004 — Accepted.** Conformance MUST prove that module/source storage
 enumeration order, resolver-map iteration order, cache state, invocation order,
