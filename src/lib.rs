@@ -21,10 +21,11 @@ pub use artifact::{
     ShaderByteRange, ShaderMappedSourceRange, ShaderRangeError,
 };
 pub use identity::{
-    ShaderCompilationInputIdentity, ShaderModuleIdentity, ShaderPackageIdentity,
-    ShaderSourceRevision, ShaderSourceUnitIdentity,
+    ShaderModuleIdentity, ShaderPackageIdentity, ShaderSourceRevision, ShaderSourceUnitIdentity,
 };
-pub use input::{ShaderCompilationInput, ShaderCompilationInvocation, ShaderInvocationError};
+pub use input::{
+    ShaderCompilationInput, ShaderCompilationInputIdentity, ShaderCompilationInvocation,
+};
 pub use outcome::{
     ShaderCompilationOutcome, ShaderCompilationResult, ShaderDiagnostic, ShaderInvariantError,
     ShaderSourceSubject,

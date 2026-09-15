@@ -49,10 +49,6 @@ define_scalar_identity!(
     ShaderSourceRevision,
     "Opaque revision identity meaningful only together with one source-unit identity."
 );
-define_scalar_identity!(
-    ShaderCompilationInputIdentity,
-    "Opaque identity for one exact closed semantic compilation input."
-);
 
 #[cfg(test)]
 mod tests {
@@ -64,7 +60,6 @@ mod tests {
         assert!(ShaderModuleIdentity::try_from_raw(0).is_none());
         assert!(ShaderSourceUnitIdentity::try_from_raw(0).is_none());
         assert!(ShaderSourceRevision::try_from_raw(0).is_none());
-        assert!(ShaderCompilationInputIdentity::try_from_raw(0).is_none());
 
         let package = ShaderPackageIdentity::try_from_raw(7).unwrap();
         let module = ShaderModuleIdentity::try_from_raw(7).unwrap();

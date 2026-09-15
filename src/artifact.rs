@@ -2,21 +2,19 @@ use core::fmt;
 use std::sync::Arc;
 
 use crate::identity::{
-    ShaderCompilationInputIdentity, ShaderModuleIdentity, ShaderPackageIdentity,
-    ShaderSourceRevision, ShaderSourceUnitIdentity,
+    ShaderModuleIdentity, ShaderPackageIdentity, ShaderSourceRevision, ShaderSourceUnitIdentity,
 };
-use crate::input::ShaderCompilationInvocation;
+use crate::input::{ShaderCompilationInputIdentity, ShaderCompilationInvocation};
 use crate::profile::{ShaderCompilerRealization, ShaderFrontendProfile};
 use crate::source::ShaderSourceSnapshot;
 
 /// Deterministic structural identity for one RunenShader artifact invocation.
 ///
 /// This identity deliberately selects no digest or serialized representation. Equality is defined
-/// structurally by the exact compilation-input identity, frontend profile, and compiler realization.
+/// structurally by the exact closed compilation-input identity and compiler realization identity.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct ShaderArtifactIdentity {
     compilation_input: ShaderCompilationInputIdentity,
-    profile: ShaderFrontendProfile,
     realization: ShaderCompilerRealization,
 }
 
@@ -25,87 +23,77 @@ impl ShaderArtifactIdentity {
     pub fn for_invocation(invocation: &ShaderCompilationInvocation) -> Self {
         Self {
             compilation_input: invocation.input().identity(),
-            profile: invocation.input().profile(),
             realization: invocation.realization(),
         }
     }
 
     /// Returns the compilation-input identity participating in this artifact identity.
-    pub const fn compilation_input(&self) -> ShaderCompilationInputIdentity {
+    pub const fn compilation_input(self) -> ShaderCompilationInputIdentity {
         self.compilation_input
     }
 
     /// Returns the frontend-profile identity participating in this artifact identity.
-    pub const fn profile(&self) -> ShaderFrontendProfile {
-        self.profile
+    pub const fn profile(self) -> ShaderFrontendProfile {
+        self.compilation_input.profile()
     }
 
     /// Returns the compiler-realization identity participating in this artifact identity.
-    pub const fn realization(&self) -> ShaderCompilerRealization {
+    pub const fn realization(self) -> ShaderCompilerRealization {
         self.realization
     }
 }
 
 /// RunenShader-owned provenance for the exact source and invocation that formed an artifact.
+///
+/// The closed compilation-input identity is the single authority for package/module/source/profile
+/// participation; provenance does not duplicate those fields into independently mutable state.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct ShaderArtifactProvenance {
     compilation_input: ShaderCompilationInputIdentity,
-    package: ShaderPackageIdentity,
-    root_module: ShaderModuleIdentity,
-    source_unit: ShaderSourceUnitIdentity,
-    source_revision: ShaderSourceRevision,
-    profile: ShaderFrontendProfile,
     realization: ShaderCompilerRealization,
 }
 
 impl ShaderArtifactProvenance {
     /// Derives provenance from the exact closed invocation.
     pub fn for_invocation(invocation: &ShaderCompilationInvocation) -> Self {
-        let input = invocation.input();
-        let source = input.source();
         Self {
-            compilation_input: input.identity(),
-            package: input.package(),
-            root_module: input.root_module(),
-            source_unit: source.source_unit(),
-            source_revision: source.revision(),
-            profile: input.profile(),
+            compilation_input: invocation.input().identity(),
             realization: invocation.realization(),
         }
     }
 
-    /// Returns the exact compilation-input identity.
-    pub const fn compilation_input(&self) -> ShaderCompilationInputIdentity {
+    /// Returns the exact closed compilation-input identity.
+    pub const fn compilation_input(self) -> ShaderCompilationInputIdentity {
         self.compilation_input
     }
 
     /// Returns the logical package identity.
-    pub const fn package(&self) -> ShaderPackageIdentity {
-        self.package
+    pub const fn package(self) -> ShaderPackageIdentity {
+        self.compilation_input.package()
     }
 
     /// Returns the logical root-module identity.
-    pub const fn root_module(&self) -> ShaderModuleIdentity {
-        self.root_module
+    pub const fn root_module(self) -> ShaderModuleIdentity {
+        self.compilation_input.root_module()
     }
 
     /// Returns the logical source-unit identity.
-    pub const fn source_unit(&self) -> ShaderSourceUnitIdentity {
-        self.source_unit
+    pub const fn source_unit(self) -> ShaderSourceUnitIdentity {
+        self.compilation_input.source_unit()
     }
 
     /// Returns the exact source revision.
-    pub const fn source_revision(&self) -> ShaderSourceRevision {
-        self.source_revision
+    pub const fn source_revision(self) -> ShaderSourceRevision {
+        self.compilation_input.source_revision()
     }
 
     /// Returns the frontend profile.
-    pub const fn profile(&self) -> ShaderFrontendProfile {
-        self.profile
+    pub const fn profile(self) -> ShaderFrontendProfile {
+        self.compilation_input.profile()
     }
 
     /// Returns the compiler realization.
-    pub const fn realization(&self) -> ShaderCompilerRealization {
+    pub const fn realization(self) -> ShaderCompilerRealization {
         self.realization
     }
 }
@@ -284,8 +272,7 @@ impl ShaderArtifact {
 #[cfg(test)]
 mod tests {
     use crate::identity::{
-        ShaderCompilationInputIdentity, ShaderModuleIdentity, ShaderPackageIdentity,
-        ShaderSourceRevision, ShaderSourceUnitIdentity,
+        ShaderModuleIdentity, ShaderPackageIdentity, ShaderSourceRevision, ShaderSourceUnitIdentity,
     };
     use crate::input::ShaderCompilationInput;
     use crate::profile::ShaderCompilerRealization;
@@ -294,7 +281,6 @@ mod tests {
 
     fn sample_invocation(source_text: &str) -> ShaderCompilationInvocation {
         let input = ShaderCompilationInput::exact_wgsl(
-            ShaderCompilationInputIdentity::try_from_raw(11).unwrap(),
             ShaderPackageIdentity::try_from_raw(12).unwrap(),
             ShaderModuleIdentity::try_from_raw(13).unwrap(),
             ShaderSourceSnapshot::new(
@@ -303,8 +289,10 @@ mod tests {
                 source_text,
             ),
         );
-        ShaderCompilationInvocation::new(input, ShaderCompilerRealization::Naga3001ExactWgsl)
-            .unwrap()
+        ShaderCompilationInvocation::new(
+            input,
+            ShaderCompilerRealization::Naga3001ExactWgslGateV1,
+        )
     }
 
     #[test]
