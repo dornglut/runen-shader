@@ -53,7 +53,7 @@ pub(crate) fn compile_wesl(invocation: &ShaderCompilationInvocation) -> ShaderCo
 
     let prepared = match prepare_modules(modules) {
         Ok(prepared) => prepared,
-        Err(outcome) => return Ok(outcome),
+        Err(diagnostics) => return Ok(ShaderCompilationOutcome::Rejected(diagnostics)),
     };
     let root_path = match parse_admitted_module_path(root) {
         Ok(path) => path,
@@ -130,7 +130,7 @@ pub(crate) fn compile_wesl(invocation: &ShaderCompilationInvocation) -> ShaderCo
 
 fn prepare_modules<'a>(
     modules: &'a [ShaderWeslModuleBinding],
-) -> Result<Vec<PreparedModule<'a>>, ShaderCompilationOutcome> {
+) -> Result<Vec<PreparedModule<'a>>, Vec<ShaderDiagnostic>> {
     let mut prepared = Vec::<PreparedModule<'a>>::with_capacity(modules.len());
     let mut paths = HashMap::<ModulePath, usize>::new();
     let mut module_bindings =
@@ -138,17 +138,14 @@ fn prepare_modules<'a>(
     let mut source_modules = HashMap::<SourceBindingKey, ShaderModuleIdentity>::new();
 
     for binding in modules {
-        let path = parse_admitted_module_path(binding)
-            .map_err(|diagnostic| ShaderCompilationOutcome::Rejected(vec![diagnostic]))?;
+        let path = parse_admitted_module_path(binding).map_err(|diagnostic| vec![diagnostic])?;
 
         if let Some(&existing_index) = paths.get(&path) {
             let existing = prepared[existing_index].binding;
             if !same_binding(existing, binding) {
-                return Err(ShaderCompilationOutcome::Rejected(vec![
-                    ShaderDiagnostic::new(
-                        "the WESL resolution table contains contradictory bindings for one canonical module path",
-                    ),
-                ]));
+                return Err(vec![ShaderDiagnostic::new(
+                    "the WESL resolution table contains contradictory bindings for one canonical module path",
+                )]);
             }
             continue;
         }
@@ -156,11 +153,9 @@ fn prepare_modules<'a>(
         let source_key = (binding.source().source_unit(), binding.source().revision());
         if let Some((existing_path, existing_source)) = module_bindings.get(&binding.module()) {
             if existing_path != &path || *existing_source != source_key {
-                return Err(ShaderCompilationOutcome::Rejected(vec![
-                    ShaderDiagnostic::new(
-                        "one logical WESL module identity has contradictory resolution or source bindings",
-                    ),
-                ]));
+                return Err(vec![ShaderDiagnostic::new(
+                    "one logical WESL module identity has contradictory resolution or source bindings",
+                )]);
             }
         } else {
             module_bindings.insert(binding.module(), (path.clone(), source_key));
@@ -168,11 +163,9 @@ fn prepare_modules<'a>(
 
         if let Some(existing_module) = source_modules.get(&source_key) {
             if *existing_module != binding.module() {
-                return Err(ShaderCompilationOutcome::Rejected(vec![
-                    ShaderDiagnostic::new(
-                        "one logical source snapshot is bound to multiple logical WESL modules",
-                    ),
-                ]));
+                return Err(vec![ShaderDiagnostic::new(
+                    "one logical source snapshot is bound to multiple logical WESL modules",
+                )]);
             }
         } else {
             source_modules.insert(source_key, binding.module());
@@ -187,17 +180,17 @@ fn prepare_modules<'a>(
                     error.span.end,
                     binding.source().text(),
                 );
-                return Err(ShaderCompilationOutcome::Rejected(vec![source_diagnostic(
+                return Err(vec![source_diagnostic(
                     binding,
                     "the WESL source could not be parsed",
                     range,
                     error.to_string(),
-                )]));
+                )]);
             }
         };
 
-        if let Some(outcome) = preflight_module_syntax(binding, &syntax) {
-            return Err(outcome);
+        if let Some(diagnostic) = preflight_module_syntax(binding, &syntax) {
+            return Err(vec![diagnostic]);
         }
 
         let index = prepared.len();
@@ -263,31 +256,31 @@ fn same_binding(left: &ShaderWeslModuleBinding, right: &ShaderWeslModuleBinding)
 fn preflight_module_syntax(
     binding: &ShaderWeslModuleBinding,
     syntax: &TranslationUnit,
-) -> Option<ShaderCompilationOutcome> {
+) -> Option<ShaderDiagnostic> {
     for import in &syntax.imports {
         if import
             .attributes
             .iter()
             .any(|attribute| is_conditional_attribute(attribute.node()))
         {
-            return Some(ShaderCompilationOutcome::Rejected(vec![source_diagnostic(
+            return Some(source_diagnostic(
                 binding,
                 "conditional attributes on WESL import statements are outside the accepted profile",
                 None,
                 "wesl-composition-2026-08-22 excludes conditional import attributes".to_string(),
-            )]));
+            ));
         }
         if import
             .path
             .as_ref()
             .is_some_and(|path| matches!(&path.origin, PathOrigin::Package(_)))
         {
-            return Some(ShaderCompilationOutcome::Rejected(vec![source_diagnostic(
+            return Some(source_diagnostic(
                 binding,
                 "external WESL package references are outside the accepted single-package profile",
                 None,
                 "external package import rejected before resolver dispatch".to_string(),
-            )]));
+            ));
         }
     }
 
@@ -304,12 +297,12 @@ fn preflight_module_syntax(
             GlobalDirective::Diagnostic(_) => None,
         };
         if let Some(name) = invalid_extension {
-            return Some(ShaderCompilationOutcome::Rejected(vec![source_diagnostic(
+            return Some(source_diagnostic(
                 binding,
                 "the WESL source requests a WGSL extension outside the accepted WGSL language envelope",
                 None,
                 format!("out-of-profile WGSL extension `{name}`"),
-            )]));
+            ));
         }
     }
 
