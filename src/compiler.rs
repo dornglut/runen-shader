@@ -372,18 +372,20 @@ mod tests {
         let ShaderCompilationOutcome::Rejected(parse_diagnostics) = parse else {
             panic!("expected parse rejection");
         };
-        assert_eq!(
-            parse_diagnostics[0]
-                .subject()
-                .unwrap()
-                .source_unit()
-                .diagnostic_raw(),
-            3
+        let parse_subject = ShaderSourceSubject::new(
+            ShaderSourceUnitIdentity::try_from_raw(3).unwrap(),
+            ShaderSourceRevision::try_from_raw(4).unwrap(),
+        );
+        let expected_parse_range = ShaderByteRange::new(11, 12).unwrap();
+        assert!(
+            parse_diagnostics
+                .iter()
+                .all(|diagnostic| diagnostic.subject() == Some(parse_subject))
         );
         assert!(
             parse_diagnostics
                 .iter()
-                .any(|diagnostic| diagnostic.range().is_some())
+                .all(|diagnostic| diagnostic.range() == Some(expected_parse_range))
         );
 
         let semantic_source = "fn bad() { break; }";
@@ -564,16 +566,43 @@ mod tests {
         let mut compiler = ShaderCompiler::new();
         let first = outcome(&mut compiler, "fn helper() {}\n");
         let second = outcome(&mut compiler, "fn helper() {}\n");
-        assert!(matches!(&first, ShaderCompilationOutcome::Accepted(_)));
-        assert_eq!(first, second);
+        let ShaderCompilationOutcome::Accepted(first_artifact) = first else {
+            panic!("expected first identical source to be accepted");
+        };
+        let ShaderCompilationOutcome::Accepted(second_artifact) = second else {
+            panic!("expected repeated identical source to be accepted");
+        };
+        assert_eq!(
+            first_artifact.canonical_wgsl().as_bytes(),
+            second_artifact.canonical_wgsl().as_bytes()
+        );
+        assert_eq!(first_artifact, second_artifact);
 
         let distinct_unit = compiler
             .compile(&invocation(7, 4, "fn helper() {}\n"))
             .unwrap();
-        assert!(matches!(
-            distinct_unit,
-            ShaderCompilationOutcome::Accepted(_)
-        ));
+        let ShaderCompilationOutcome::Accepted(distinct_artifact) = distinct_unit else {
+            panic!("expected distinct logical source unit to be accepted");
+        };
+        assert_eq!(
+            first_artifact.canonical_wgsl().as_bytes(),
+            distinct_artifact.canonical_wgsl().as_bytes()
+        );
+        assert_ne!(first_artifact.identity(), distinct_artifact.identity());
+        assert_ne!(
+            first_artifact.provenance().source_unit(),
+            distinct_artifact.provenance().source_unit()
+        );
+        let full_range = ShaderByteRange::new(0, first_artifact.source_map().byte_len()).unwrap();
+        let first_mapped = first_artifact
+            .source_map()
+            .map_artifact_range(full_range)
+            .unwrap();
+        let distinct_mapped = distinct_artifact
+            .source_map()
+            .map_artifact_range(full_range)
+            .unwrap();
+        assert_ne!(first_mapped.source_unit(), distinct_mapped.source_unit());
     }
 
     #[test]
@@ -600,8 +629,8 @@ mod tests {
             panic!("expected accepted host-state probe result")
         };
         let expected_marker = format!(
-            "RUNEN_SHADER_HOST_STATE_RESULT=accepted:{}",
-            artifact.canonical_wgsl().len()
+            "RUNEN_SHADER_HOST_STATE_RESULT={}",
+            normative_test_representation(&artifact)
         );
 
         let base =
@@ -657,8 +686,40 @@ mod tests {
             panic!("expected accepted host-state probe result")
         };
         println!(
-            "RUNEN_SHADER_HOST_STATE_RESULT=accepted:{}",
-            artifact.canonical_wgsl().len()
+            "RUNEN_SHADER_HOST_STATE_RESULT={}",
+            normative_test_representation(&artifact)
         );
+    }
+
+    fn normative_test_representation(artifact: &ShaderArtifact) -> String {
+        let input = artifact.identity().compilation_input();
+        let provenance = artifact.provenance();
+        let full_range = ShaderByteRange::new(0, artifact.source_map().byte_len()).unwrap();
+        let mapped = artifact
+            .source_map()
+            .map_artifact_range(full_range)
+            .unwrap();
+
+        format!(
+            "outcome=accepted;canonical_bytes={:?};artifact_identity.input.package={};artifact_identity.input.root_module={};artifact_identity.input.source_unit={};artifact_identity.input.revision={};artifact_identity.input.profile={};artifact_identity.realization={};provenance.package={};provenance.root_module={};provenance.source_unit={};provenance.revision={};provenance.profile={};provenance.realization={};source_map.byte_len={};source_map.source_unit={};source_map.revision={};source_map.range=[{}, {})",
+            artifact.canonical_wgsl().as_bytes(),
+            input.package().diagnostic_raw(),
+            input.root_module().diagnostic_raw(),
+            input.source_unit().diagnostic_raw(),
+            input.source_revision().diagnostic_raw(),
+            input.profile().semantic_name(),
+            artifact.identity().realization().diagnostic_label(),
+            provenance.package().diagnostic_raw(),
+            provenance.root_module().diagnostic_raw(),
+            provenance.source_unit().diagnostic_raw(),
+            provenance.source_revision().diagnostic_raw(),
+            provenance.profile().semantic_name(),
+            provenance.realization().diagnostic_label(),
+            artifact.source_map().byte_len(),
+            mapped.source_unit().diagnostic_raw(),
+            mapped.revision().diagnostic_raw(),
+            mapped.range().start(),
+            mapped.range().end(),
+        )
     }
 }
