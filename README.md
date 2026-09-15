@@ -5,18 +5,17 @@ shader-compilation semantics.
 
 It defines the stable source-to-artifact boundary used by renderers, compute
 consumers, and other tooling without making a renderer, GPU executor, filesystem,
-or compiler implementation the owner of shader-source semantics.
+or compiler implementation the owner of shader-source semantics. The first
+concrete path is the pinned Naga 30.0.1 exact-WGSL realization.
 
 ## Maturity
 
 RunenShader is in R0 semantic-kernel work. Repository and normative specification
-authority are established, and the public crate now exposes the dependency-free
-semantic data kernel for logical identities, exact source snapshots, closed
-exact-WGSL inputs, artifact evidence, source mapping, and outcome types.
+authority are established, and the public crate exposes the semantic data kernel
+plus a stateful compiler for the pinned Naga 30.0.1 exact-WGSL realization.
 
-The exact-WGSL frontend profile and Naga realization contract are selected by the
-normative specification, but no shader parser/compiler realization or frontend
-support is implemented yet.
+The implementation claims only the exact-WGSL surface demonstrated by its
+compiler conformance fixtures; broader frontend support is not implied.
 
 See [STATUS.md](STATUS.md) for durable maturity and [ROADMAP.md](ROADMAP.md) for
 outcome sequencing.
