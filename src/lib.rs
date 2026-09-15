@@ -2,8 +2,8 @@
 //!
 //! The normative contract is repository-owned under `spec/`. The public Rust surface implements
 //! the exact-WGSL semantic data boundary and its pinned Naga 30.0.1 compiler realization, plus the
-//! closed multi-source input/provenance evidence required by the accepted WESL composition profile.
-//! No WESL compiler realization is implemented yet. Compiler-private IR and reflection remain
+//! accepted closed WESL composition profile and its first pinned wesl-rs 0.5.0 realization.
+//! Compiler-private IR, reflection, resolver handles, and upstream source-map identities remain
 //! non-authoritative implementation details.
 
 mod artifact;
@@ -13,11 +13,14 @@ mod input;
 mod outcome;
 mod profile;
 mod source;
+mod wesl_realization;
 mod wgsl_gate;
+mod wgsl_validation;
 
 pub use artifact::{
     ExactWgslSourceMap, ShaderArtifact, ShaderArtifactIdentity, ShaderArtifactProvenance,
-    ShaderByteRange, ShaderMappedSourceRange, ShaderRangeError,
+    ShaderArtifactRangeMapping, ShaderArtifactSourceMap, ShaderByteRange, ShaderMappedSourceRange,
+    ShaderRangeError,
 };
 pub use compiler::ShaderCompiler;
 pub use identity::{

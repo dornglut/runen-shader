@@ -2,12 +2,10 @@
 
 RunenShader is an active `rust-framework` repository. The R0 semantic-kernel exit
 properties are achieved through the accepted exact-WGSL production path and its
-repository-owned conformance evidence. R1 has accepted its first additional
-frontend contract for closed WESL composition, and the public Rust semantic
-kernel can represent that profile's closed multi-source input/provenance evidence.
-No WESL compiler realization or generated-WGSL artifact path is implemented yet.
-This document records durable capability maturity only. GitHub owns live issue,
-pull-request, workflow, and priority state.
+repository-owned conformance evidence. R1 has accepted and realized its first
+additional frontend contract for closed WESL composition through a pinned
+`wesl-rs` 0.5.0 realization. This document records durable capability maturity
+only. GitHub owns live issue, pull-request, workflow, and priority state.
 
 ## Current capability
 
@@ -15,13 +13,13 @@ pull-request, workflow, and priority state.
 | --- | --- |
 | repository identity and licensing authority | established |
 | normative source/toolchain semantic model | established under `spec/` |
-| public semantic data kernel | implemented for identities, exact snapshots, closed exact-WGSL inputs, WESL-ready closed multi-source input identity/evidence, artifact provenance, exact-WGSL source mapping, diagnostics, and outcome types |
+| public semantic data kernel | implemented for identities, exact snapshots, closed exact-WGSL inputs, closed WESL multi-source input identity/evidence, artifact provenance, generic artifact mapping classifications, diagnostics, and outcome types |
 | exact WGSL frontend profile | selected and realized through the pinned Naga 30.0.1 path |
-| WESL composition frontend profile | accepted for the pinned 22 Aug 2026 import/visibility + conditional-translation surface; semantic input/provenance representation implemented, compiler realization absent |
+| WESL composition frontend profile | accepted for the pinned 22 Aug 2026 import/visibility + conditional-translation surface and realized by `wesl-rs` 0.5.0 V1 over closed in-memory inputs |
 | repository-owned merge-readiness validation | established |
-| public shader-compilation entry point | stateful `ShaderCompiler` implemented for the exact-WGSL realization only |
-| concrete frontend implementation | Naga 30.0.1 WGSL parser/validator behind the private profile gate; tested coverage is limited to the demonstrated exact-WGSL surface |
-| canonical WGSL artifact formation by a compiler | implemented for exact WGSL with byte-preserving source artifacts and identity source mapping; generated WESL artifact formation is not implemented |
+| public shader-compilation entry point | stateful `ShaderCompiler` implemented for exact WGSL and the accepted WESL composition realization |
+| concrete frontend implementation | Naga 30.0.1 exact-WGSL parser/validator plus `wesl-rs` 0.5.0 closed composition; each remains behind RunenShader-owned profile and outcome translation |
+| canonical WGSL artifact formation by a compiler | implemented for exact WGSL with byte-preserving identity mapping and for WESL with generated canonical WGSL plus conservative total unattributable mapping |
 | Slang support | architecture-targeted but production-deferred while WGSL/WebGPU realization evidence remains immature |
 | generic frontend plugin/provider mechanism | deferred; accepted profiles remain repository-owned |
 | persistent artifact/cache format | none accepted |
@@ -31,7 +29,7 @@ pull-request, workflow, and priority state.
 ## Maturity constraints
 
 The semantic specification, exact-WGSL profile, and WESL composition profile
-define what their respective compiler paths must preserve. The current production
+define what their respective compiler paths must preserve. The exact-WGSL
 realization proves ordinary valid WGSL modules with and without entry points,
 exact source-byte preservation, Naga parse and semantic rejection, private gate
 reconciliation, source-revision binding, host-state reproducibility, logical
@@ -39,24 +37,32 @@ diagnostics, and representative constructs for every Gate V1 `Continue`
 extension. It does not claim device or downstream pipeline support merely
 because Naga source validation uses broad capabilities.
 
-The accepted WESL profile pins a closed single-package multi-module contract for
-import/visibility composition and complete conditional translation. The Rust
-semantic kernel now represents its explicit main module, admitted logical
-module/source revisions, canonical WESL resolution-key spellings, conditional
-feature values, and complete structural input/provenance evidence without using
-compiler-native identities. It still has no WESL compiler dependency, generated
-WGSL production, transformed artifact mapping, or WESL conformance realization.
-Representability is not a claim that WESL source can already be compiled by the
-public crate.
+The WESL realization is pinned to `wesl-rs` 0.5.0 with optional crate features
+disabled and a fixed `CompileOptions` contract. It resolves only the explicit
+closed single-package in-memory module table, completes admitted conditional
+translation from explicit feature values, and independently readmits generated
+WGSL through the existing RunenShader WGSL gate plus Naga 30.0.1 validation.
+Ambient filesystem contents, the process working directory, environment state,
+`wesl.toml`, registries, network lookup, and package dependencies are not
+realization authority. Every admitted source remains in artifact provenance even
+when WESL static usage analysis does not load that module.
+
+The first WESL realization is deliberately bounded. Conditional attributes on
+imports are rejected. Profile-valid global WGSL directive composition is
+`Unsupported` while upstream `wesl-rs` directive behavior lacks the evidence
+required by the accepted contract; profile-invalid directives remain rejected.
+Transformed WESL artifact bytes are conservatively classified as
+`Unattributable`; the public mapping model can also represent exact-source and
+generated ranges, but the V1 realization does not claim byte-precise transformed
+source mapping without proof.
 
 RunenShader does not support Slang, a generic frontend plugin mechanism,
 filesystem discovery, package-registry resolution, source watching, hot reload,
 or downstream GPU admission merely because those concerns have been evaluated.
 
-RunenShader currently makes no repository MSRV claim. The Naga dependency is
-pinned and Cargo-resolved, but no minimum Rust version is promoted from that
-evidence. Researching a future WESL compiler dependency does not establish an
-MSRV either.
+RunenShader currently makes no repository MSRV claim. The concrete dependencies
+are pinned and Cargo-resolved, but their individual `rust-version` declarations
+do not by themselves establish a repository MSRV policy.
 
 ## Acceptance model
 

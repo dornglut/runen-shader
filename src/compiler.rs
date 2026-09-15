@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use crate::artifact::{
-    ExactWgslSourceMap, ShaderArtifact, ShaderArtifactIdentity, ShaderArtifactProvenance,
+    ShaderArtifact, ShaderArtifactIdentity, ShaderArtifactProvenance, ShaderArtifactSourceMap,
     ShaderByteRange,
 };
 use crate::identity::{ShaderSourceRevision, ShaderSourceUnitIdentity};
@@ -12,7 +12,9 @@ use crate::outcome::{
     ShaderSourceSubject,
 };
 use crate::profile::{ShaderCompilerRealization, ShaderFrontendProfile};
+use crate::wesl_realization::compile_wesl;
 use crate::wgsl_gate::{ExactWgslGateDecision, ExactWgslGateFinding, gate_exact_wgsl_profile};
+use crate::wgsl_validation::{parse_wgsl, validate_wgsl};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum GateParserDecision {
@@ -26,8 +28,9 @@ enum GateParserDecision {
 ///
 /// The compiler records the exact bytes first observed for every logical
 /// `(source unit, revision)` pair in one admitted closed input before realization dispatch. This is
-/// instance state rather than semantic identity or a process-global registry. The only implemented
-/// compiler realization remains the pinned exact-WGSL Naga path.
+/// instance state rather than semantic identity or a process-global registry. Realization dispatch
+/// is explicit: exact WGSL uses the pinned Naga gate, while WESL composition uses the pinned closed
+/// wesl-rs realization.
 #[derive(Debug, Default)]
 pub struct ShaderCompiler {
     source_bindings: HashMap<(ShaderSourceUnitIdentity, ShaderSourceRevision), Arc<str>>,
@@ -45,28 +48,34 @@ impl ShaderCompiler {
             return Ok(rejected);
         }
 
+        match (invocation.input().profile(), invocation.realization()) {
+            (
+                ShaderFrontendProfile::WgslExact20260817,
+                ShaderCompilerRealization::Naga3001ExactWgslGateV1,
+            ) => self.compile_exact_wgsl(invocation),
+            (
+                ShaderFrontendProfile::WeslComposition20260822,
+                ShaderCompilerRealization::Wesl050Composition20260822V1,
+            ) => compile_wesl(invocation),
+            _ => {
+                let source = invocation.input().source();
+                let subject = ShaderSourceSubject::new(source.source_unit(), source.revision());
+                Ok(ShaderCompilationOutcome::Unsupported(vec![
+                    ShaderDiagnostic::new(
+                        "the selected compiler realization does not provide accepted coverage for the requested frontend profile",
+                    )
+                    .with_source(subject, None),
+                ]))
+            }
+        }
+    }
+
+    fn compile_exact_wgsl(
+        &self,
+        invocation: &ShaderCompilationInvocation,
+    ) -> ShaderCompilationResult {
         let source = invocation.input().source();
         let subject = ShaderSourceSubject::new(source.source_unit(), source.revision());
-
-        if invocation.input().profile() == ShaderFrontendProfile::WeslComposition20260822
-            && invocation.realization() == ShaderCompilerRealization::Naga3001ExactWgslGateV1
-        {
-            return Ok(ShaderCompilationOutcome::Unsupported(vec![
-                ShaderDiagnostic::new(
-                    "the selected compiler realization does not provide accepted coverage for the WESL composition profile",
-                )
-                .with_source(subject, None),
-            ]));
-        }
-
-        if invocation.input().profile() != ShaderFrontendProfile::WgslExact20260817
-            || invocation.realization() != ShaderCompilerRealization::Naga3001ExactWgslGateV1
-        {
-            return Err(ShaderInvariantError {
-                summary: "the invocation selects an unsupported RunenShader realization",
-            });
-        }
-
         let gate = gate_exact_wgsl_profile(source);
         if let ExactWgslGateDecision::Rejected(finding) = gate {
             return Ok(ShaderCompilationOutcome::Rejected(vec![gate_diagnostic(
@@ -74,13 +83,7 @@ impl ShaderCompiler {
             )]));
         }
 
-        let mut frontend =
-            naga::front::wgsl::Frontend::new_with_options(naga::front::wgsl::Options {
-                parse_doc_comments: false,
-                capabilities: naga::valid::Capabilities::all(),
-            });
-        let parsed = frontend.parse(source.text());
-
+        let parsed = parse_wgsl(source.text());
         let module = match parsed {
             Ok(module) => match reconcile_gate_and_parse(gate, true, None) {
                 GateParserDecision::ContinueToValidation => module,
@@ -127,14 +130,7 @@ impl ShaderCompiler {
             }
         };
 
-        let mut validator = naga::valid::Validator::new(
-            naga::valid::ValidationFlags::all(),
-            naga::valid::Capabilities::all(),
-        );
-        validator.subgroup_stages(naga::valid::ShaderStages::all());
-        validator.subgroup_operations(naga::valid::SubgroupOperationSet::all());
-
-        if let Err(error) = validator.validate(&module) {
+        if let Err(error) = validate_wgsl(&module) {
             return Ok(ShaderCompilationOutcome::Rejected(validation_diagnostics(
                 subject,
                 source.text(),
@@ -146,7 +142,7 @@ impl ShaderCompiler {
             identity: ShaderArtifactIdentity::for_invocation(invocation),
             canonical_wgsl: Arc::clone(&source.source),
             provenance: ShaderArtifactProvenance::for_invocation(invocation),
-            source_map: ExactWgslSourceMap::for_source(source),
+            source_map: ShaderArtifactSourceMap::exact(source),
         }))
     }
 
@@ -384,6 +380,8 @@ mod tests {
         let mapped = artifact
             .source_map()
             .map_artifact_range(full_range)
+            .unwrap()
+            .exact_source()
             .unwrap();
         assert_eq!(mapped.range(), full_range);
         assert_eq!(mapped.source_unit(), artifact.provenance().source_unit());
@@ -603,11 +601,11 @@ mod tests {
         let gate = ExactWgslGateDecision::Unsupported(finding);
 
         assert_eq!(
-            reconcile_gate_and_parse(gate, false, ShaderByteRange::new(0, 5),),
+            reconcile_gate_and_parse(gate, false, ShaderByteRange::new(0, 5)),
             GateParserDecision::Rejected
         );
         assert_eq!(
-            reconcile_gate_and_parse(gate, false, ShaderByteRange::new(12, 16),),
+            reconcile_gate_and_parse(gate, false, ShaderByteRange::new(12, 16)),
             GateParserDecision::Unsupported
         );
     }
@@ -667,7 +665,7 @@ mod tests {
     }
 
     #[test]
-    fn all_wesl_sources_bind_before_unimplemented_realization_is_unsupported() {
+    fn all_wesl_sources_bind_before_profile_realization_mismatch_is_unsupported() {
         let mut compiler = ShaderCompiler::new();
         let wesl = wesl_invocation(
             wesl_module("package::main", 820, 820, 1, "fn root() {}"),
@@ -676,7 +674,7 @@ mod tests {
 
         let result = compiler.compile(&wesl).unwrap();
         let ShaderCompilationOutcome::Unsupported(diagnostics) = result else {
-            panic!("expected WESL request without an accepted realization to be unsupported");
+            panic!("expected WESL request with the exact-WGSL realization to be unsupported");
         };
         assert_eq!(diagnostics.len(), 1);
         assert_eq!(
@@ -701,6 +699,25 @@ mod tests {
             dependency_rebound,
             ShaderCompilationOutcome::Rejected(_)
         ));
+    }
+
+    #[test]
+    fn exact_wgsl_with_the_wesl_realization_is_ordinary_unsupported_coverage() {
+        let mut compiler = ShaderCompiler::new();
+        let exact = ShaderCompilationInvocation::new(
+            ShaderCompilationInput::exact_wgsl(
+                ShaderPackageIdentity::try_from_raw(1).unwrap(),
+                ShaderModuleIdentity::try_from_raw(2).unwrap(),
+                ShaderSourceSnapshot::new(
+                    ShaderSourceUnitIdentity::try_from_raw(900).unwrap(),
+                    ShaderSourceRevision::try_from_raw(1).unwrap(),
+                    "fn helper() {}",
+                ),
+            ),
+            ShaderCompilerRealization::Wesl050Composition20260822V1,
+        );
+        let result = compiler.compile(&exact).unwrap();
+        assert!(matches!(result, ShaderCompilationOutcome::Unsupported(_)));
     }
 
     #[test]
@@ -739,10 +756,14 @@ mod tests {
         let first_mapped = first_artifact
             .source_map()
             .map_artifact_range(full_range)
+            .unwrap()
+            .exact_source()
             .unwrap();
         let distinct_mapped = distinct_artifact
             .source_map()
             .map_artifact_range(full_range)
+            .unwrap()
+            .exact_source()
             .unwrap();
         assert_ne!(first_mapped.source_unit(), distinct_mapped.source_unit());
     }
@@ -840,6 +861,8 @@ mod tests {
         let mapped = artifact
             .source_map()
             .map_artifact_range(full_range)
+            .unwrap()
+            .exact_source()
             .unwrap();
 
         format!(
