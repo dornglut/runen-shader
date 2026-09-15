@@ -1,11 +1,10 @@
 [package]
-name = "rust-framework-template"
+name = "runen-shader"
 version = "0.0.0"
-edition = "2024"
-rust-version = "1.93.0"
+edition.workspace = true
 license.workspace = true
-repository = "https://github.com/dornglut/rust-framework-template"
-description = "Reusable Rust framework bootstrap template"
+repository = "https://github.com/dornglut/runen-shader"
+description = "Backend-neutral shader source and compilation semantics for Dornglut"
 publish = false
 
 [workspace]
@@ -14,7 +13,7 @@ members = ["xtask"]
 
 [workspace.package]
 edition = "2024"
-license = "Apache-2.0"
+license = "GPL-3.0-only"
 
 [lints]
 workspace = true
