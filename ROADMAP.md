@@ -10,6 +10,9 @@ Establish one repository-owned shader-source/toolchain semantic authority and
 realize it with the first independently usable deterministic path from explicit
 source input to exact canonical WGSL.
 
+R0 exit state: achieved in accepted repository authority. This is a durable stage
+boundary, not authorization for any later implementation by itself.
+
 Exit properties:
 
 - normalized source/package/module identity and immutable revision semantics;
@@ -29,6 +32,10 @@ accepted independently; no universal frontend plugin model is presumed.
 
 The outcome is multiple useful authoring/composition paths that preserve the R0
 identity, resolution, artifact, and reproducibility invariants.
+
+R1 work begins only through decision-complete, issue-owned evidence; R0 completion
+does not pre-authorize WESL, another frontend, package resolution, or any specific
+composition mechanism.
 
 ## R2 — Downstream conformance
 

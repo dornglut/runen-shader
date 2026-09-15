@@ -1,8 +1,9 @@
 # Status
 
-RunenShader is an active `rust-framework` repository in R0 semantic-kernel work.
-This document records durable capability maturity only. GitHub owns live issue,
-pull-request, workflow, and priority state.
+RunenShader is an active `rust-framework` repository. The R0 semantic-kernel exit
+properties are achieved through the accepted exact-WGSL production path and its
+repository-owned conformance evidence. This document records durable capability
+maturity only. GitHub owns live issue, pull-request, workflow, and priority state.
 
 ## Current capability
 
