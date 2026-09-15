@@ -6,6 +6,8 @@ use crate::source::ShaderSourceSnapshot;
 pub(crate) enum ExactWgslGateDecision {
     /// Every observed relevant directive is in-profile and inside Gate V1 coverage.
     Continue,
+    /// A recognized directive is malformed or otherwise requires the real WGSL parser to decide.
+    DeferToParser,
     /// A complete observed extension name is outside the pinned WGSL profile.
     Rejected(ExactWgslGateFinding),
     /// A complete observed extension name is in-profile but outside Gate V1 coverage.
@@ -47,7 +49,7 @@ enum NameDisposition {
 ///
 /// This is deliberately not a WGSL parser. It recognizes only the initial global-directive
 /// prefix needed to prevent the selected compiler realization from defining profile membership.
-/// Any uncertain or malformed directive shape is left to the later WGSL parser.
+/// Any uncertain or malformed recognized directive is deferred to the later WGSL parser.
 pub(crate) fn gate_exact_wgsl_profile(source: &ShaderSourceSnapshot) -> ExactWgslGateDecision {
     let text = source.text();
     let mut cursor = 0;
@@ -57,7 +59,7 @@ pub(crate) fn gate_exact_wgsl_profile(source: &ShaderSourceSnapshot) -> ExactWgs
     loop {
         cursor = match skip_trivia(text, cursor) {
             Some(next) => next,
-            None => return finish(first_rejected, first_unsupported),
+            None => return ExactWgslGateDecision::DeferToParser,
         };
 
         if cursor == text.len() {
@@ -74,7 +76,7 @@ pub(crate) fn gate_exact_wgsl_profile(source: &ShaderSourceSnapshot) -> ExactWgs
                 let Some((next, findings)) =
                     scan_extension_directive(text, keyword_end, ExactWgslDirectiveKind::Enable)
                 else {
-                    return finish(first_rejected, first_unsupported);
+                    return ExactWgslGateDecision::DeferToParser;
                 };
                 record_findings(findings, &mut first_rejected, &mut first_unsupported);
                 cursor = next;
@@ -83,14 +85,14 @@ pub(crate) fn gate_exact_wgsl_profile(source: &ShaderSourceSnapshot) -> ExactWgs
                 let Some((next, findings)) =
                     scan_extension_directive(text, keyword_end, ExactWgslDirectiveKind::Requires)
                 else {
-                    return finish(first_rejected, first_unsupported);
+                    return ExactWgslGateDecision::DeferToParser;
                 };
                 record_findings(findings, &mut first_rejected, &mut first_unsupported);
                 cursor = next;
             }
             "diagnostic" => {
                 let Some(next) = scan_diagnostic_directive(text, keyword_end) else {
-                    return finish(first_rejected, first_unsupported);
+                    return ExactWgslGateDecision::DeferToParser;
                 };
                 cursor = next;
             }
@@ -512,15 +514,18 @@ mod tests {
     }
 
     #[test]
-    fn malformed_or_incomplete_directives_fail_open_to_later_parser() {
+    fn malformed_or_incomplete_directives_defer_to_later_parser() {
         for source in [
             "enable wgpu_mesh_shader",
             "enable wgpu_mesh_shader ?;",
             "requires unrestricted_pointer_parameters",
             "diagnostic(off, derivative_uniformity",
             "enable ;",
+            "enable subgroups;\nenable ?;",
+            "requires future_extension;\nrequires ;",
+            "enable subgroups;\n/* unterminated",
         ] {
-            assert_eq!(decision(source), ExactWgslGateDecision::Continue);
+            assert_eq!(decision(source), ExactWgslGateDecision::DeferToParser);
         }
     }
 
