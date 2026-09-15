@@ -48,6 +48,17 @@ impl ShaderCompiler {
         let source = invocation.input().source();
         let subject = ShaderSourceSubject::new(source.source_unit(), source.revision());
 
+        if invocation.input().profile() == ShaderFrontendProfile::WeslComposition20260822
+            && invocation.realization() == ShaderCompilerRealization::Naga3001ExactWgslGateV1
+        {
+            return Ok(ShaderCompilationOutcome::Unsupported(vec![
+                ShaderDiagnostic::new(
+                    "the selected compiler realization does not provide accepted coverage for the WESL composition profile",
+                )
+                .with_source(subject, None),
+            ]));
+        }
+
         if invocation.input().profile() != ShaderFrontendProfile::WgslExact20260817
             || invocation.realization() != ShaderCompilerRealization::Naga3001ExactWgslGateV1
         {
@@ -153,10 +164,8 @@ impl ShaderCompiler {
             vec![input.source()]
         };
 
-        let mut pending = HashMap::<
-            (ShaderSourceUnitIdentity, ShaderSourceRevision),
-            Arc<str>,
-        >::new();
+        let mut pending =
+            HashMap::<(ShaderSourceUnitIdentity, ShaderSourceRevision), Arc<str>>::new();
 
         for source in sources {
             let subject = ShaderSourceSubject::new(source.source_unit(), source.revision());
@@ -307,9 +316,7 @@ mod tests {
     use crate::identity::{
         ShaderModuleIdentity, ShaderPackageIdentity, ShaderSourceRevision, ShaderSourceUnitIdentity,
     };
-    use crate::input::{
-        ShaderCompilationInput, ShaderWeslModuleBinding, ShaderWeslModulePath,
-    };
+    use crate::input::{ShaderCompilationInput, ShaderWeslModuleBinding, ShaderWeslModulePath};
     use crate::source::ShaderSourceSnapshot;
 
     fn invocation(source_unit: u64, revision: u64, source: &str) -> ShaderCompilationInvocation {
@@ -660,26 +667,33 @@ mod tests {
     }
 
     #[test]
-    fn all_wesl_sources_bind_before_unimplemented_realization_dispatch_fails_closed() {
+    fn all_wesl_sources_bind_before_unimplemented_realization_is_unsupported() {
         let mut compiler = ShaderCompiler::new();
         let wesl = wesl_invocation(
             wesl_module("package::main", 820, 820, 1, "fn root() {}"),
-            vec![wesl_module(
-                "package::math",
-                821,
-                821,
-                1,
-                "fn helper() {}",
-            )],
+            vec![wesl_module("package::math", 821, 821, 1, "fn helper() {}")],
         );
 
-        let invariant = compiler.compile(&wesl).unwrap_err();
-        assert!(invariant.summary().contains("unsupported RunenShader realization"));
+        let result = compiler.compile(&wesl).unwrap();
+        let ShaderCompilationOutcome::Unsupported(diagnostics) = result else {
+            panic!("expected WESL request without an accepted realization to be unsupported");
+        };
+        assert_eq!(diagnostics.len(), 1);
+        assert_eq!(
+            diagnostics[0].subject(),
+            Some(ShaderSourceSubject::new(
+                ShaderSourceUnitIdentity::try_from_raw(820).unwrap(),
+                ShaderSourceRevision::try_from_raw(1).unwrap(),
+            ))
+        );
 
         let root_rebound = compiler
             .compile(&invocation(820, 1, "fn changed_root() {}"))
             .unwrap();
-        assert!(matches!(root_rebound, ShaderCompilationOutcome::Rejected(_)));
+        assert!(matches!(
+            root_rebound,
+            ShaderCompilationOutcome::Rejected(_)
+        ));
         let dependency_rebound = compiler
             .compile(&invocation(821, 1, "fn changed_helper() {}"))
             .unwrap();

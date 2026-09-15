@@ -12,12 +12,7 @@ fn snapshot(unit: u64, revision: u64) -> ShaderSourceSnapshot {
     )
 }
 
-fn module(
-    path: &str,
-    module: u64,
-    unit: u64,
-    revision: u64,
-) -> ShaderWeslModuleBinding {
+fn module(path: &str, module: u64, unit: u64, revision: u64) -> ShaderWeslModuleBinding {
     ShaderWeslModuleBinding::new(
         ShaderWeslModulePath::new(path),
         ShaderModuleIdentity::try_from_raw(module).unwrap(),

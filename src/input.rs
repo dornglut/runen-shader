@@ -323,12 +323,8 @@ impl ShaderCompilationInput {
         modules.sort_by(compare_wesl_module_bindings);
         features.sort_by(compare_wesl_features);
 
-        let identity = ShaderCompilationInputIdentity::wesl_composition(
-            package,
-            &root,
-            &modules,
-            &features,
-        );
+        let identity =
+            ShaderCompilationInputIdentity::wesl_composition(package, &root, &modules, &features);
         let wesl = ShaderWeslCompositionInput {
             root,
             modules: modules.into(),
@@ -412,7 +408,12 @@ fn compare_wesl_module_bindings(
         })
         // Bytes are only a final storage-order tie breaker for conflicting snapshots with identical
         // semantic identity. They never enter ShaderCompilationInputIdentity.
-        .then_with(|| left.source().text().as_bytes().cmp(right.source().text().as_bytes()))
+        .then_with(|| {
+            left.source()
+                .text()
+                .as_bytes()
+                .cmp(right.source().text().as_bytes())
+        })
 }
 
 fn compare_wesl_features(
@@ -429,7 +430,8 @@ fn compare_wesl_features(
 /// Construction does not pre-classify realization coverage. If a selected realization cannot cover
 /// an otherwise valid accepted profile request, the compiler boundary reports the normative
 /// `Unsupported` outcome rather than a separate construction failure. Profile/realization pairings
-/// for which RunenShader has no accepted realization continue to fail closed at compiler dispatch.
+/// for which RunenShader has no accepted realization remain ordinary unsupported coverage until a
+/// conforming realization is accepted.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ShaderCompilationInvocation {
     input: ShaderCompilationInput,
@@ -481,7 +483,13 @@ mod tests {
         )
     }
 
-    fn module(path: &str, module: u64, unit: u64, revision: u64, source: &str) -> ShaderWeslModuleBinding {
+    fn module(
+        path: &str,
+        module: u64,
+        unit: u64,
+        revision: u64,
+        source: &str,
+    ) -> ShaderWeslModuleBinding {
         ShaderWeslModuleBinding::new(
             ShaderWeslModulePath::new(path),
             ShaderModuleIdentity::try_from_raw(module).unwrap(),
@@ -534,10 +542,16 @@ mod tests {
 
         assert_eq!(left.identity(), right.identity());
         assert_eq!(left, right);
-        assert_eq!(left.profile(), ShaderFrontendProfile::WeslComposition20260822);
+        assert_eq!(
+            left.profile(),
+            ShaderFrontendProfile::WeslComposition20260822
+        );
         assert_eq!(left.root_module().diagnostic_raw(), 10);
         assert_eq!(left.source().source_unit().diagnostic_raw(), 20);
-        assert_eq!(left.wesl_root().unwrap().resolution_path().as_str(), "package::main");
+        assert_eq!(
+            left.wesl_root().unwrap().resolution_path().as_str(),
+            "package::main"
+        );
 
         let modules = left.wesl_modules().unwrap();
         assert_eq!(modules.len(), 3);
