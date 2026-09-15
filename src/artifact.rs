@@ -17,27 +17,30 @@ use crate::source::ShaderSourceSnapshot;
 /// structurally by the exact closed compilation-input identity and compiler realization identity.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct ShaderArtifactIdentity {
-    compilation_input: ShaderCompilationInputIdentity,
+    compilation_input: Arc<ShaderCompilationInputIdentity>,
+    profile: ShaderFrontendProfile,
     realization: ShaderCompilerRealization,
 }
 
 impl ShaderArtifactIdentity {
     /// Derives artifact identity deterministically from one complete semantic invocation.
     pub fn for_invocation(invocation: &ShaderCompilationInvocation) -> Self {
+        let compilation_input = invocation.input().identity();
         Self {
-            compilation_input: invocation.input().identity(),
+            profile: compilation_input.profile(),
+            compilation_input: Arc::new(compilation_input),
             realization: invocation.realization(),
         }
     }
 
     /// Returns the compilation-input identity participating in this artifact identity.
     pub fn compilation_input(&self) -> ShaderCompilationInputIdentity {
-        self.compilation_input.clone()
+        self.compilation_input.as_ref().clone()
     }
 
     /// Returns the frontend-profile identity participating in this artifact identity.
     pub const fn profile(&self) -> ShaderFrontendProfile {
-        self.compilation_input.profile()
+        self.profile
     }
 
     /// Returns the compiler-realization identity participating in this artifact identity.
@@ -160,7 +163,7 @@ impl ShaderByteRange {
     }
 }
 
-/// Error returned when a byte range lies outside one exact source/artifact mapping.
+/// Error returned when a byte range lies outside one artifact mapping.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct ShaderRangeError {
     range: ShaderByteRange,
@@ -173,8 +176,13 @@ impl ShaderRangeError {
         self.range
     }
 
-    /// Returns the mapped source/artifact byte length.
+    /// Returns the covered source/artifact byte length.
     pub const fn source_byte_len(self) -> usize {
+        self.byte_len
+    }
+
+    /// Returns the covered artifact byte length.
+    pub const fn artifact_byte_len(self) -> usize {
         self.byte_len
     }
 }
@@ -183,7 +191,7 @@ impl fmt::Display for ShaderRangeError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             formatter,
-            "shader byte range [{}, {}) exceeds source length {}",
+            "shader byte range [{}, {}) exceeds artifact length {}",
             self.range.start, self.range.end, self.byte_len
         )
     }
@@ -191,7 +199,7 @@ impl fmt::Display for ShaderRangeError {
 
 impl std::error::Error for ShaderRangeError {}
 
-/// Source-side result of mapping an exact canonical-WGSL artifact range.
+/// Source-side result of mapping a canonical-artifact range.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct ShaderMappedSourceRange {
     source_unit: ShaderSourceUnitIdentity,
@@ -244,13 +252,7 @@ impl ExactWgslSourceMap {
         self,
         range: ShaderByteRange,
     ) -> Result<ShaderMappedSourceRange, ShaderRangeError> {
-        if range.end() > self.byte_len {
-            return Err(ShaderRangeError {
-                range,
-                byte_len: self.byte_len,
-            });
-        }
-
+        check_range(range, self.byte_len)?;
         Ok(ShaderMappedSourceRange {
             source_unit: self.source_unit,
             revision: self.revision,
@@ -259,17 +261,110 @@ impl ExactWgslSourceMap {
     }
 }
 
+/// Truthful mapping classification for one requested canonical-artifact byte range.
+#[non_exhaustive]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum ShaderArtifactRangeMapping {
+    /// The artifact range is byte-identical to one logical source range.
+    ExactSource(ShaderMappedSourceRange),
+    /// The artifact range is proven to be generated rather than copied from authored source bytes.
+    Generated(ShaderByteRange),
+    /// The realization cannot truthfully classify the artifact range more precisely.
+    Unattributable(ShaderByteRange),
+}
+
+impl ShaderArtifactRangeMapping {
+    /// Returns the requested artifact range represented by this mapping result.
+    pub const fn artifact_range(self) -> ShaderByteRange {
+        match self {
+            Self::ExactSource(mapped) => mapped.range(),
+            Self::Generated(range) | Self::Unattributable(range) => range,
+        }
+    }
+
+    /// Returns an exact logical source mapping when one is proven.
+    pub const fn exact_source(self) -> Option<ShaderMappedSourceRange> {
+        match self {
+            Self::ExactSource(mapped) => Some(mapped),
+            Self::Generated(_) | Self::Unattributable(_) => None,
+        }
+    }
+}
+
+/// Closed mapping representation for accepted canonical artifacts.
+///
+/// Exact WGSL has a total byte-identity mapping. Transformed realizations can classify total
+/// generated output when that fact is proven, or conservatively retain total unattributable
+/// coverage when no stronger byte relation has been established.
+#[non_exhaustive]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum ShaderArtifactSourceMap {
+    /// Total byte-identity mapping for an exact-WGSL artifact.
+    ExactIdentity(ExactWgslSourceMap),
+    /// Total artifact coverage proven to be generated.
+    Generated { byte_len: usize },
+    /// Total artifact coverage with no proven byte-level attribution classification.
+    Unattributable { byte_len: usize },
+}
+
+impl ShaderArtifactSourceMap {
+    /// Forms the exact identity mapping used by the exact-WGSL realization.
+    pub fn exact(source: &ShaderSourceSnapshot) -> Self {
+        Self::ExactIdentity(ExactWgslSourceMap::for_source(source))
+    }
+
+    /// Forms total generated coverage for one transformed artifact.
+    pub const fn generated(byte_len: usize) -> Self {
+        Self::Generated { byte_len }
+    }
+
+    /// Forms total unattributable coverage for one transformed artifact.
+    pub const fn unattributable(byte_len: usize) -> Self {
+        Self::Unattributable { byte_len }
+    }
+
+    /// Returns the canonical artifact byte length covered by this map.
+    pub const fn byte_len(self) -> usize {
+        match self {
+            Self::ExactIdentity(map) => map.byte_len(),
+            Self::Generated { byte_len } | Self::Unattributable { byte_len } => byte_len,
+        }
+    }
+
+    /// Maps one in-bounds artifact range using the strongest truthful evidence available.
+    pub fn map_artifact_range(
+        self,
+        range: ShaderByteRange,
+    ) -> Result<ShaderArtifactRangeMapping, ShaderRangeError> {
+        check_range(range, self.byte_len())?;
+        Ok(match self {
+            Self::ExactIdentity(map) => {
+                ShaderArtifactRangeMapping::ExactSource(map.map_artifact_range(range)?)
+            }
+            Self::Generated { .. } => ShaderArtifactRangeMapping::Generated(range),
+            Self::Unattributable { .. } => ShaderArtifactRangeMapping::Unattributable(range),
+        })
+    }
+}
+
+fn check_range(range: ShaderByteRange, byte_len: usize) -> Result<(), ShaderRangeError> {
+    if range.end() > byte_len {
+        Err(ShaderRangeError { range, byte_len })
+    } else {
+        Ok(())
+    }
+}
+
 /// Accepted canonical shader artifact data.
 ///
-/// Ordinary callers cannot construct this type directly. The currently implemented pinned
-/// exact-WGSL realization forms it only after successful profile validation. Later transformed
-/// realizations may extend the artifact mapping representation through separately accepted work.
+/// Ordinary callers cannot construct this type directly. Accepted realizations form it only after
+/// frontend/profile processing and independent canonical-WGSL admission have completed.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ShaderArtifact {
     pub(crate) identity: ShaderArtifactIdentity,
     pub(crate) canonical_wgsl: Arc<str>,
     pub(crate) provenance: ShaderArtifactProvenance,
-    pub(crate) source_map: ExactWgslSourceMap,
+    pub(crate) source_map: ShaderArtifactSourceMap,
 }
 
 impl ShaderArtifact {
@@ -288,10 +383,8 @@ impl ShaderArtifact {
         &self.provenance
     }
 
-    /// Returns the exact-WGSL identity source map.
-    ///
-    /// Only the accepted exact-WGSL realization constructs artifacts in the current implementation.
-    pub const fn source_map(&self) -> ExactWgslSourceMap {
+    /// Returns total mapping coverage for this canonical artifact.
+    pub const fn source_map(&self) -> ShaderArtifactSourceMap {
         self.source_map
     }
 }
@@ -388,13 +481,14 @@ mod tests {
     fn exact_source_map_is_total_identity_mapping_with_bounds_checks() {
         let invocation = sample_invocation("abc\u{00e9}");
         let source = invocation.input().source();
-        let map = ExactWgslSourceMap::for_source(source);
+        let map = ShaderArtifactSourceMap::exact(source);
         let full = ShaderByteRange::new(0, source.byte_len()).unwrap();
         let mapped = map.map_artifact_range(full).unwrap();
+        let exact = mapped.exact_source().unwrap();
 
-        assert_eq!(mapped.source_unit(), source.source_unit());
-        assert_eq!(mapped.revision(), source.revision());
-        assert_eq!(mapped.range(), full);
+        assert_eq!(exact.source_unit(), source.source_unit());
+        assert_eq!(exact.revision(), source.revision());
+        assert_eq!(exact.range(), full);
         assert_eq!(map.byte_len(), source.byte_len());
 
         let empty_at_end = ShaderByteRange::new(source.byte_len(), source.byte_len()).unwrap();
@@ -405,6 +499,27 @@ mod tests {
     }
 
     #[test]
+    fn generated_and_unattributable_maps_are_total_without_inventing_source_identity() {
+        let range = ShaderByteRange::new(2, 7).unwrap();
+        let generated = ShaderArtifactSourceMap::generated(9);
+        assert_eq!(
+            generated.map_artifact_range(range).unwrap(),
+            ShaderArtifactRangeMapping::Generated(range)
+        );
+
+        let unattributable = ShaderArtifactSourceMap::unattributable(9);
+        assert_eq!(
+            unattributable.map_artifact_range(range).unwrap(),
+            ShaderArtifactRangeMapping::Unattributable(range)
+        );
+        assert!(
+            unattributable
+                .map_artifact_range(ShaderByteRange::new(0, 10).unwrap())
+                .is_err()
+        );
+    }
+
+    #[test]
     fn artifact_data_preserves_the_exact_source_bytes() {
         let invocation = sample_invocation("\u{feff}// exact\r\nfn helper() { }\n");
         let source = invocation.input().source();
@@ -412,7 +527,7 @@ mod tests {
             identity: ShaderArtifactIdentity::for_invocation(&invocation),
             canonical_wgsl: Arc::clone(&source.source),
             provenance: ShaderArtifactProvenance::for_invocation(&invocation),
-            source_map: ExactWgslSourceMap::for_source(source),
+            source_map: ShaderArtifactSourceMap::exact(source),
         };
 
         assert_eq!(
@@ -420,5 +535,9 @@ mod tests {
             source.text().as_bytes()
         );
         assert_eq!(artifact.source_map().byte_len(), source.byte_len());
+        assert!(matches!(
+            artifact.source_map(),
+            ShaderArtifactSourceMap::ExactIdentity(_)
+        ));
     }
 }

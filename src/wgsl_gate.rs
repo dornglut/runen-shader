@@ -39,10 +39,14 @@ impl ExactWgslGateFinding {
     }
 }
 
+/// RunenShader-owned disposition for one WGSL extension name in the pinned language envelope.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum NameDisposition {
+pub(crate) enum WgslExtensionDisposition {
+    /// The extension is in profile and inside the selected Gate V1/Naga coverage.
     Continue,
+    /// The extension is outside the pinned WGSL profile.
     Rejected,
+    /// The extension is in profile but outside selected Gate V1/Naga coverage.
     Unsupported,
 }
 
@@ -52,7 +56,13 @@ enum NameDisposition {
 /// prefix needed to prevent the selected compiler realization from defining profile membership.
 /// Any uncertain or malformed recognized directive is deferred to the later WGSL parser.
 pub(crate) fn gate_exact_wgsl_profile(source: &ShaderSourceSnapshot) -> ExactWgslGateDecision {
-    let text = source.text();
+    gate_wgsl_profile_text(source.text())
+}
+
+/// Applies the same pinned WGSL language-envelope gate to generated canonical WGSL text.
+///
+/// This text-only entry point avoids inventing a logical source identity for transformed output.
+pub(crate) fn gate_wgsl_profile_text(text: &str) -> ExactWgslGateDecision {
     let mut cursor = 0;
     let mut first_rejected = None;
     let mut first_unsupported = None;
@@ -116,20 +126,20 @@ fn finish(
 }
 
 fn record_findings(
-    findings: Vec<(NameDisposition, ExactWgslGateFinding)>,
+    findings: Vec<(WgslExtensionDisposition, ExactWgslGateFinding)>,
     first_rejected: &mut Option<ExactWgslGateFinding>,
     first_unsupported: &mut Option<ExactWgslGateFinding>,
 ) {
     for (disposition, finding) in findings {
         match disposition {
-            NameDisposition::Continue => {}
-            NameDisposition::Rejected if first_rejected.is_none() => {
+            WgslExtensionDisposition::Continue => {}
+            WgslExtensionDisposition::Rejected if first_rejected.is_none() => {
                 *first_rejected = Some(finding);
             }
-            NameDisposition::Unsupported if first_unsupported.is_none() => {
+            WgslExtensionDisposition::Unsupported if first_unsupported.is_none() => {
                 *first_unsupported = Some(finding);
             }
-            NameDisposition::Rejected | NameDisposition::Unsupported => {}
+            WgslExtensionDisposition::Rejected | WgslExtensionDisposition::Unsupported => {}
         }
     }
 }
@@ -138,7 +148,7 @@ fn scan_extension_directive(
     source: &str,
     after_keyword: usize,
     directive: ExactWgslDirectiveKind,
-) -> Option<(usize, Vec<(NameDisposition, ExactWgslGateFinding)>)> {
+) -> Option<(usize, Vec<(WgslExtensionDisposition, ExactWgslGateFinding)>)> {
     let mut cursor = skip_trivia(source, after_keyword)?;
     let mut findings = Vec::new();
 
@@ -146,7 +156,7 @@ fn scan_extension_directive(
         let name_start = cursor;
         let (name_end, name) = scan_ascii_identifier(source, cursor)?;
         let range = ShaderByteRange::new(name_start, name_end)?;
-        let disposition = classify_extension_name(directive, name);
+        let disposition = classify_wgsl_extension_name(directive, name);
         findings.push((
             disposition,
             ExactWgslGateFinding {
@@ -213,19 +223,22 @@ fn scan_diagnostic_directive(source: &str, after_keyword: usize) -> Option<usize
     None
 }
 
-fn classify_extension_name(directive: ExactWgslDirectiveKind, name: &str) -> NameDisposition {
+pub(crate) fn classify_wgsl_extension_name(
+    directive: ExactWgslDirectiveKind,
+    name: &str,
+) -> WgslExtensionDisposition {
     match directive {
         ExactWgslDirectiveKind::Enable => match name {
             "f16" | "clip_distances" | "dual_source_blending" | "primitive_index" => {
-                NameDisposition::Continue
+                WgslExtensionDisposition::Continue
             }
-            "subgroups" | "subgroup_size_control" => NameDisposition::Unsupported,
-            _ => NameDisposition::Rejected,
+            "subgroups" | "subgroup_size_control" => WgslExtensionDisposition::Unsupported,
+            _ => WgslExtensionDisposition::Rejected,
         },
         ExactWgslDirectiveKind::Requires => match name {
             "readonly_and_readwrite_storage_textures"
             | "packed_4x8_integer_dot_product"
-            | "pointer_composite_access" => NameDisposition::Continue,
+            | "pointer_composite_access" => WgslExtensionDisposition::Continue,
             "unrestricted_pointer_parameters"
             | "uniform_buffer_standard_layout"
             | "subgroup_id"
@@ -235,8 +248,8 @@ fn classify_extension_name(directive: ExactWgslDirectiveKind, name: &str) -> Nam
             | "linear_indexing"
             | "immediate_address_space"
             | "fragment_depth"
-            | "buffer_view" => NameDisposition::Unsupported,
-            _ => NameDisposition::Rejected,
+            | "buffer_view" => WgslExtensionDisposition::Unsupported,
+            _ => WgslExtensionDisposition::Rejected,
         },
     }
 }
@@ -398,6 +411,12 @@ mod tests {
         };
         let range = finding.name_range();
         assert_eq!(&source[range.start()..range.end()], expected_name);
+    }
+
+    #[test]
+    fn text_gate_matches_snapshot_gate_without_source_identity() {
+        let source = "enable subgroups;\n";
+        assert_eq!(gate_wgsl_profile_text(source), decision(source));
     }
 
     #[test]

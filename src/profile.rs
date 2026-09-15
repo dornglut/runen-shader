@@ -32,6 +32,14 @@ pub enum ShaderCompilerRealization {
     /// `default-features = false`, `wgsl-in` only, all validation flags/capabilities, all subgroup
     /// stages/operations for validator purposes, and RunenShader exact-WGSL profile gate V1.
     Naga3001ExactWgslGateV1,
+    /// WESL 0.5.0 closed-composition realization for `wesl-composition-2026-08-22`.
+    ///
+    /// V1 fixes imports and conditional translation on; generics, lowering, and stripping off;
+    /// supplemental WESL validation and diagnostic sourcemap collection on; Escape mangling with
+    /// main-module mangling off; no keep list, constants, package dependencies, or ambient
+    /// resolution; missing conditional features as errors; and RunenShader's independent generated
+    /// WGSL gate/validation authority.
+    Wesl050Composition20260822V1,
 }
 
 impl ShaderCompilerRealization {
@@ -41,6 +49,7 @@ impl ShaderCompilerRealization {
     pub const fn diagnostic_label(self) -> &'static str {
         match self {
             Self::Naga3001ExactWgslGateV1 => "naga-30.0.1-wgsl-exact-gate-v1",
+            Self::Wesl050Composition20260822V1 => "wesl-0.5.0-composition-2026-08-22-v1",
         }
     }
 }
@@ -62,14 +71,14 @@ mod tests {
     }
 
     #[test]
-    fn profile_and_realization_are_distinct_semantic_values() {
-        let profile = ShaderFrontendProfile::WgslExact20260817;
-        let realization = ShaderCompilerRealization::Naga3001ExactWgslGateV1;
-
-        assert_eq!(profile.semantic_name(), "wgsl-exact-2026-08-17");
+    fn realization_labels_are_specific_and_distinct() {
         assert_eq!(
-            realization.diagnostic_label(),
+            ShaderCompilerRealization::Naga3001ExactWgslGateV1.diagnostic_label(),
             "naga-30.0.1-wgsl-exact-gate-v1"
+        );
+        assert_eq!(
+            ShaderCompilerRealization::Wesl050Composition20260822V1.diagnostic_label(),
+            "wesl-0.5.0-composition-2026-08-22-v1"
         );
     }
 }

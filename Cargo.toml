@@ -9,6 +9,7 @@ publish = false
 
 [dependencies]
 naga = { version = "=30.0.1", default-features = false, features = ["wgsl-in"] }
+wesl = { version = "=0.5.0", default-features = false }
 
 [workspace]
 resolver = "3"
