@@ -76,11 +76,7 @@ pub(crate) fn gate_exact_wgsl_profile(source: &ShaderSourceSnapshot) -> ExactWgs
                 else {
                     return finish(first_rejected, first_unsupported);
                 };
-                record_findings(
-                    findings,
-                    &mut first_rejected,
-                    &mut first_unsupported,
-                );
+                record_findings(findings, &mut first_rejected, &mut first_unsupported);
                 cursor = next;
             }
             "requires" => {
@@ -89,11 +85,7 @@ pub(crate) fn gate_exact_wgsl_profile(source: &ShaderSourceSnapshot) -> ExactWgs
                 else {
                     return finish(first_rejected, first_unsupported);
                 };
-                record_findings(
-                    findings,
-                    &mut first_rejected,
-                    &mut first_unsupported,
-                );
+                record_findings(findings, &mut first_rejected, &mut first_unsupported);
                 cursor = next;
             }
             "diagnostic" => {
@@ -201,10 +193,7 @@ fn scan_diagnostic_directive(source: &str, after_keyword: usize) -> Option<usize
     consume_ascii(source, cursor, b';')
 }
 
-fn classify_extension_name(
-    directive: ExactWgslDirectiveKind,
-    name: &str,
-) -> NameDisposition {
+fn classify_extension_name(directive: ExactWgslDirectiveKind, name: &str) -> NameDisposition {
     match directive {
         ExactWgslDirectiveKind::Enable => match name {
             "f16" | "clip_distances" | "dual_source_blending" | "primitive_index" => {
@@ -352,13 +341,7 @@ const fn is_pattern_whitespace(ch: char) -> bool {
 const fn is_line_break(ch: char) -> bool {
     matches!(
         ch,
-        '\u{000a}'
-            | '\u{000b}'
-            | '\u{000c}'
-            | '\u{000d}'
-            | '\u{0085}'
-            | '\u{2028}'
-            | '\u{2029}'
+        '\u{000a}' | '\u{000b}' | '\u{000c}' | '\u{000d}' | '\u{0085}' | '\u{2028}' | '\u{2029}'
     )
 }
 
