@@ -15,6 +15,9 @@ mod input;
 mod outcome;
 mod profile;
 mod source;
+// Accepted ahead of the compiler realization so its conformance can be proved independently.
+#[allow(dead_code)]
+mod wgsl_gate;
 
 pub use artifact::{
     ExactWgslSourceMap, ShaderArtifact, ShaderArtifactIdentity, ShaderArtifactProvenance,
