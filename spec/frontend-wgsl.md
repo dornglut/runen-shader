@@ -254,24 +254,25 @@ package metadata, and prove any proposed repository MSRV in CI before adding a
 or metadata from a neighboring Naga release are evidence only and MUST NOT become
 RunenShader MSRV authority without the resolved implementation dependency.
 
-## 11. Disposition of other frontend candidates
+## 11. Disposition of other frontend profiles
 
-**WGSL-NEXT-001 — Accepted.** WESL is the preferred next composition candidate,
-not an R0 supported frontend. Future WESL work must pin an exact WESL edition and
-compiler realization, compile only from RunenShader's closed logical inputs, and
-use an in-memory/custom resolver rather than ambient filesystem, registry, or
-network discovery unless those adapters are separately accepted.
+**WGSL-NEXT-001 — Accepted.** WESL composition is accepted separately by the
+[WESL composition frontend profile](frontend-wesl.md). That R1 profile does not
+alter this exact-WGSL profile's one-source, byte-identical artifact, identity-map,
+or pinned Naga realization semantics.
 
-**WGSL-NEXT-002 — Accepted.** A future WESL profile must explicitly select its
-stable/experimental feature surface, source-mapping contract, conditional inputs,
-module/package correspondence, mangling behavior, and output reproducibility.
-Compiler defaults or a floating WESL edition are not acceptable profile identity.
+**WGSL-NEXT-002 — Accepted.** A concrete WESL compiler realization remains
+separate from WESL profile acceptance and MUST satisfy the closed-input,
+feature-surface, provenance, source-mapping, output-reproducibility, and
+realization-evidence rules owned by `frontend-wesl.md`. Compiler defaults or a
+floating WESL revision are not RunenShader profile authority.
 
-**WGSL-NEXT-003 — Accepted.** Slang frontend support is **Deferred** while its
-WebGPU target remains work in progress or until a concrete RunenShader consumer
-need justifies a fresh investigation. Current deferral does not imply rejection
-of Slang as a future tool.
+**WGSL-NEXT-003 — Accepted.** Slang frontend support remains **Deferred** as a
+production realization while its WGSL/WebGPU target remains work in progress.
+A future Slang path requires its own pinned profile and issue-owned realization
+evidence; current deferral does not imply rejection of Slang as a future tool.
 
 **WGSL-NEXT-004 — Accepted.** A generic frontend plugin ABI remains **Deferred**.
-The exact-WGSL profile MUST be implemented directly against the accepted semantic
-contracts rather than through a speculative universal frontend abstraction.
+Accepted frontend profiles are implemented directly against the RunenShader
+semantic contracts until repeated concrete realizations prove a public extension
+boundary is necessary.
