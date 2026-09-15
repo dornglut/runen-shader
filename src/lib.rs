@@ -1,28 +1,24 @@
 //! RunenShader defines reusable shader-source and shader-compilation semantics.
 //!
-//! The normative contract is repository-owned under `spec/`. The current public Rust surface
-//! implements the dependency-free semantic data kernel: explicit logical identities, immutable
-//! exact source snapshots, closed exact-WGSL inputs, profile/realization identity, deterministic
-//! artifact evidence, exact source mapping, and typed outcome data.
-//!
-//! No shader parser/compiler realization is implemented yet. In particular, the presence of the
-//! accepted Naga realization identity does not mean Naga is linked or that WGSL compilation support
-//! has shipped.
+//! The normative contract is repository-owned under `spec/`. The public Rust surface implements
+//! the exact-WGSL semantic data boundary and its pinned Naga 30.0.1 compiler realization. Naga
+//! remains a private implementation detail: accepted artifacts preserve the original source
+//! bytes and contain no Naga IR or reflection data.
 
 mod artifact;
+mod compiler;
 mod identity;
 mod input;
 mod outcome;
 mod profile;
 mod source;
-// Accepted ahead of the compiler realization so its conformance can be proved independently.
-#[allow(dead_code)]
 mod wgsl_gate;
 
 pub use artifact::{
     ExactWgslSourceMap, ShaderArtifact, ShaderArtifactIdentity, ShaderArtifactProvenance,
     ShaderByteRange, ShaderMappedSourceRange, ShaderRangeError,
 };
+pub use compiler::ShaderCompiler;
 pub use identity::{
     ShaderModuleIdentity, ShaderPackageIdentity, ShaderSourceRevision, ShaderSourceUnitIdentity,
 };

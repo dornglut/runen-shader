@@ -32,25 +32,32 @@ Concrete compiler libraries, their private IR, reflection structures, filesystem
 resolvers, caches, thread scheduling, and process state are implementation
 realizations. They may implement accepted contracts but do not define them.
 
-The public Rust crate now realizes the dependency-free semantic data boundary,
-but no frontend compiler realization is accepted as implemented yet.
+The public Rust crate realizes the semantic data boundary and the first concrete
+exact-WGSL compiler path. `ShaderCompiler` is the explicit stateful authority for
+the pinned Naga 30.0.1 realization; the private profile gate remains the
+RunenShader-owned admission evidence, while Naga parse and validation remain
+private realization work.
 
 ## Current repository shape
 
 The current source tree contains:
 
-- a public dependency-free semantic data kernel for explicit identities, exact
+- a public semantic data kernel for explicit identities, exact
   source snapshots, closed exact-WGSL inputs/invocations, deterministic artifact
   evidence, identity source mapping, diagnostics, and outcome classes;
-- no shader parser, compiler dependency, or compilation entry point yet;
+- one public stateful `ShaderCompiler` using the private exact-WGSL profile gate
+  and pinned Naga 30.0.1 parsing/validation;
+- exact source-byte artifact formation after successful gate reconciliation,
+  parsing, and semantic validation;
 - the normative `spec/` authority;
 - root architecture, roadmap, status, testing, licensing, and agent entrypoints;
 - a repository-local `xtask` that owns merge-readiness validation;
 - a thin immutable CI caller.
 
-Compiler realization code is admitted only by later issue-owned work that
-preserves this public semantic boundary rather than exposing compiler-private
-objects as authority.
+The compiler realization preserves this public boundary: it records source-byte
+observations only in the compiler instance, translates public Naga spans into
+RunenShader diagnostics, and never exposes or stores Naga modules, IR, reflection,
+or a WGSL writer path in accepted artifacts.
 
 ## Implementation boundary
 
@@ -61,8 +68,9 @@ boundary.
 
 Exact-WGSL artifact formation remains compiler-owned inside the crate: ordinary
 callers can inspect `ShaderArtifact` but cannot construct success-shaped artifact
-data directly. The later compiler realization will populate that type only after
-successful accepted-profile validation.
+data directly. The pinned realization populates that type only after successful
+profile-gate reconciliation, Naga parsing, and semantic validation, using the
+unchanged source bytes and the existing structural identity/provenance/map types.
 
 ## Documentation authority
 

@@ -29,6 +29,7 @@ pub(crate) struct ExactWgslGateFinding {
 }
 
 impl ExactWgslGateFinding {
+    #[cfg(test)]
     pub(crate) const fn directive(self) -> ExactWgslDirectiveKind {
         self.directive
     }

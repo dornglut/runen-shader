@@ -58,9 +58,16 @@ When a suitable local Rust executor is unavailable, hosted exact-head CI is the
 first executable compile/test gate; local/model inspection must be reported only
 as preparation, not as executable validation.
 
-## Future conformance
+## Exact-WGSL compiler conformance
 
-Concrete shader frontends, public compilation APIs, downstream consumers,
-performance claims, and cross-toolchain reproducibility will add focused
-conformance evidence only when those capabilities are accepted. No such support
-is implied by the bootstrap specification alone.
+The current focused compiler tests exercise the public stateful `ShaderCompiler`
+with valid modules with and without entry points, exact source-byte preservation,
+parse and semantic rejection, Naga-only extension rejection, pinned-but-unrealized
+extension outcomes, malformed-directive deferral, source-revision rebinding,
+repeated compilation, distinct logical identities, logical diagnostic subjects,
+and an actual `f16` extension construct. The tests also cover every unsupported
+`requires` name currently recognized by the private R0D2 gate.
+
+Naga is inspected only through its public WGSL parse labels and validation spans;
+its module, IR, reflection, and WGSL writer are not part of the RunenShader
+artifact boundary. The production dependency enables `wgsl-in` only.
