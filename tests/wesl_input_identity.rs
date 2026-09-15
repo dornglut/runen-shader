@@ -5,10 +5,6 @@ use runen_shader::{
     ShaderWeslModuleBinding, ShaderWeslModulePath,
 };
 
-fn snapshot(unit: u64, revision: u64) -> ShaderSourceSnapshot {
-    snapshot_with_source(unit, revision, "fn helper() {}")
-}
-
 fn snapshot_with_source(unit: u64, revision: u64, source: &str) -> ShaderSourceSnapshot {
     ShaderSourceSnapshot::new(
         ShaderSourceUnitIdentity::try_from_raw(unit).unwrap(),
