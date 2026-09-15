@@ -56,13 +56,12 @@ fn every_accepted_wesl_identity_dimension_changes_structural_input_identity() {
     );
     assert_ne!(baseline.identity(), changed_package.identity());
 
+    // Keep the identical two admitted module bindings and change only which one is the explicit
+    // main/root module.
     let changed_root = input(
         1,
-        module("package::other_main", 12, 22, 1),
-        vec![
-            module("package::main", 10, 20, 1),
-            module("package::math", 11, 21, 1),
-        ],
+        module("package::math", 11, 21, 1),
+        vec![module("package::main", 10, 20, 1)],
         false,
     );
     assert_ne!(baseline.identity(), changed_root.identity());
