@@ -169,7 +169,10 @@ mod tests {
         assert_eq!(left.identity().root_module().diagnostic_raw(), 3);
         assert_eq!(left.identity().source_unit().diagnostic_raw(), 4);
         assert_eq!(left.identity().source_revision().diagnostic_raw(), 5);
-        assert_eq!(left.identity().profile().semantic_name(), "wgsl-exact-2026-08-17");
+        assert_eq!(
+            left.identity().profile().semantic_name(),
+            "wgsl-exact-2026-08-17"
+        );
     }
 
     #[test]

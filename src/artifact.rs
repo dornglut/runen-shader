@@ -289,10 +289,7 @@ mod tests {
                 source_text,
             ),
         );
-        ShaderCompilationInvocation::new(
-            input,
-            ShaderCompilerRealization::Naga3001ExactWgslGateV1,
-        )
+        ShaderCompilationInvocation::new(input, ShaderCompilerRealization::Naga3001ExactWgslGateV1)
     }
 
     #[test]
