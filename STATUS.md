@@ -16,7 +16,7 @@ workflow, and priority state.
 | normative source/toolchain semantic model | established under `spec/` |
 | public semantic data kernel | implemented for identities, exact snapshots, closed exact-WGSL inputs, artifact evidence, source mapping, diagnostics, and outcome types |
 | exact WGSL frontend profile | selected and realized through the pinned Naga 30.0.1 path |
-| WESL composition frontend profile | accepted for the pinned 22 Aug 2026 imports + conditional-translation surface; no compiler realization yet |
+| WESL composition frontend profile | accepted for the pinned 22 Aug 2026 import/visibility + conditional-translation surface; no compiler realization yet |
 | repository-owned merge-readiness validation | established |
 | public shader-compilation entry point | stateful `ShaderCompiler` implemented for the exact-WGSL realization |
 | concrete frontend implementation | Naga 30.0.1 WGSL parser/validator behind the private profile gate; tested coverage is limited to the demonstrated exact-WGSL surface |
@@ -39,7 +39,7 @@ extension. It does not claim device or downstream pipeline support merely
 because Naga source validation uses broad capabilities.
 
 The accepted WESL profile pins a closed single-package multi-module contract for
-imports and complete conditional translation. It does not yet provide a Rust
+import/visibility composition and complete conditional translation. It does not yet provide a Rust
 multi-source input representation, a WESL compiler dependency, generated-WGSL
 artifact production, or WESL conformance evidence. Accepting the profile is not
 a claim that WESL source can already be compiled by the public crate.

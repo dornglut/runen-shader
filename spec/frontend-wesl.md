@@ -16,11 +16,12 @@ realization must prove its own supported coverage against this contract.
 as `wesl-composition-2026-08-22`.
 
 **WESL-PROFILE-002 — Accepted.** `wesl-composition-2026-08-22` incorporates the
-WESL import and conditional-translation semantics from the
-`webgpu-tools/wesl-spec` repository at Git revision
-`78d932876ae17e0a41e63fa17ea66804725625b0`, dated 22 August 2026, including
-the subordinate visibility, module-path, and other definitions required to give
-those two enhancements their meaning.
+WESL import/composition semantics in `Imports.md`, the visibility and
+pipeline-exposure semantics required by that composition model in `Visibility.md`,
+and the conditional-translation semantics in `ConditionalTranslation.md` from
+the `webgpu-tools/wesl-spec` repository at Git revision
+`78d932876ae17e0a41e63fa17ea66804725625b0`, dated 22 August 2026, together
+with the subordinate definitions those selected documents normatively require.
 
 **WESL-PROFILE-003 — Accepted.** The WGSL language embedded in this WESL profile
 uses the same W3C WGSL Candidate Recommendation Draft dated 17 August 2026 that
@@ -41,9 +42,10 @@ closed-input mapping, artifact boundary, and realization/conformance contract.
 ## 2. Accepted WESL language surface
 
 **WESL-LANG-001 — Accepted.** The newly accepted WESL enhancement surface is
-limited to imports and conditional translation from the pinned WESL revision.
-WGSL syntax and constructs otherwise remain inside the pinned WGSL baseline
-selected by `WESL-PROFILE-003`.
+limited to the pinned import/composition family selected by
+`WESL-PROFILE-002`—including the visibility rules required by that family—and
+conditional translation. WGSL syntax and constructs otherwise remain inside the
+pinned WGSL baseline selected by `WESL-PROFILE-003`.
 
 **WESL-LANG-002 — Accepted.** The import surface includes the pinned WESL
 semantics required for module paths, item/module imports, aliases, collections,
@@ -76,15 +78,22 @@ language-input mechanisms for this profile. Their absence does not change the
 pinned WESL syntax; it restricts which WESL package references can resolve in one
 RunenShader invocation.
 
+**WESL-LANG-007 — Accepted.** WESL's `pipeline-visible` source/linker semantics
+control which translated entry points, resources, and overrides are exposed by
+the WESL main module and how their names survive translation. They do not grant
+RunenShader GPU-device, pipeline-creation, binding, or execution authority;
+downstream admission remains independently owned.
+
 ## 3. Closed package, module, and source input
 
 The generic RunenShader package/module/source identities remain authoritative.
 WESL module paths are resolution keys layered on those identities.
 
 **WESL-IN-001 — Accepted.** One invocation contains exactly one
-`ShaderPackageIdentity`, one explicit compilation root `ShaderModuleIdentity`, a
-finite explicit set of participating logical modules, and exact immutable UTF-8
-source-unit/revision snapshots for those modules.
+`ShaderPackageIdentity`, one explicit compilation root `ShaderModuleIdentity`
+that serves as the pinned WESL **main module**, a finite explicit set of
+participating logical modules, and exact immutable UTF-8 source-unit/revision
+snapshots for those modules.
 
 **WESL-IN-002 — Accepted.** Each admitted WESL module path MUST resolve to
 exactly one admitted logical module and exactly one complete source snapshot for
@@ -102,20 +111,26 @@ directory, or package manifest.
 line-ending, byte-order-mark, whitespace, comment, spelling, or formatting
 normalization by RunenShader.
 
-**WESL-IN-005 — Accepted.** WESL module paths, import spellings, aliases,
-package-relative paths, and display names are profile-specific resolution facts.
-They MUST NOT become or determine `ShaderModuleIdentity`,
-`ShaderSourceUnitIdentity`, `ShaderSourceRevision`, filesystem-path identity, or
-compiler-private identity.
+**WESL-IN-005 — Accepted.** The admitted resolution table is keyed by canonical
+single-package WESL module paths anchored at `package` (`package` or
+`package::...`). Relative `super` spellings, import aliases, collections, and
+other reference syntax are resolved by the pinned WESL language into those
+canonical paths before table lookup. WESL paths and spellings are
+profile-specific resolution facts and MUST NOT become or determine
+`ShaderModuleIdentity`, `ShaderSourceUnitIdentity`, `ShaderSourceRevision`,
+filesystem-path identity, or compiler-private identity.
 
 **WESL-IN-006 — Accepted.** This initial profile admits only references that
 resolve within the single explicit RunenShader package. A path anchored at any
 external WESL package name is invalid under this profile even if the pinned WESL
 language or a future compiler can resolve it.
 
-**WESL-IN-007 — Accepted.** The admitted WESL module-path mapping MUST be finite,
-explicit, and unambiguous. Duplicate keys, contradictory module/source bindings,
-or resolution to a source revision absent from the closed input are `Rejected`.
+**WESL-IN-007 — Accepted.** The admitted canonical WESL module-path mapping MUST
+be finite, explicit, and unambiguous. Two spellings that normalize to the same
+canonical key MUST resolve to the same admitted logical module/source snapshot.
+Duplicate canonical keys with different targets, contradictory module/source
+bindings, or resolution to a source revision absent from the closed input are
+`Rejected`.
 
 **WESL-IN-008 — Accepted.** Collection enumeration order for modules, source
 snapshots, module-path bindings, and conditional features has no semantic meaning
@@ -304,14 +319,18 @@ RunenShader evidence.
 
 **WESL-CONF-002 — Accepted.** Positive conformance MUST cover at least:
 single-module WESL, multi-module relative imports, package-root-relative imports,
-aliases/collections, a cycle that is valid under pinned WESL semantics,
+aliases/collections, public/private/package visibility and main-module
+pipeline exposure, a cycle that is valid under pinned WESL semantics,
 conditional imports or declarations where accepted by the pinned combination,
 and explicit true/false feature selections.
 
 **WESL-CONF-003 — Accepted.** Negative conformance MUST independently cover at
-least unresolved imports, forbidden external-package references, ambiguous closed
-resolution, missing referenced conditional features, invalid WESL syntax or
-semantics, and generated WGSL outside the pinned WGSL language envelope.
+least unresolved imports that are semantically required, forbidden
+external-package references, ambiguous closed resolution, missing referenced
+conditional features, invalid WESL syntax or semantics, and authored WGSL
+constructs or extensions outside the pinned underlying WGSL language baseline.
+A separate fail-closed fixture MUST prove that realization output outside
+`WESL-ART-002` can never be published as `Accepted`.
 
 **WESL-CONF-004 — Accepted.** Conformance MUST prove that module/source storage
 enumeration order, resolver-map iteration order, cache state, invocation order,

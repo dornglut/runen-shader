@@ -40,10 +40,10 @@ implementations freedom to publish incompatible public semantics.
 - [Exact WGSL frontend profile](frontend-wgsl.md) — first concrete frontend
   profile, exact-artifact rule, validation realization contract, source mapping,
   outcome specialization, and conformance obligations.
-- [WESL composition frontend profile](frontend-wesl.md) — pinned WESL imports
-  and conditional translation over closed multi-module inputs, generated WGSL
-  artifact rules, provenance/mapping constraints, and future realization
-  obligations.
+- [WESL composition frontend profile](frontend-wesl.md) — pinned WESL
+  import/visibility composition and conditional translation over closed
+  multi-module inputs, generated WGSL artifact rules, provenance/mapping
+  constraints, and future realization obligations.
 
 Normative files may link only to other files inside `spec/`. External language
 specifications and compiler documentation are explicit inputs to concrete
