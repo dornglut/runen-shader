@@ -163,7 +163,9 @@ fn validate_repository_identity(root: &Path) -> Result<(), String> {
         "license = \"GPL-3.0-only\"",
     ] {
         if !cargo.contains(required) {
-            return Err(format!("Cargo.toml is missing accepted identity field: {required}"));
+            return Err(format!(
+                "Cargo.toml is missing accepted identity field: {required}"
+            ));
         }
     }
     if cargo.contains("rust-version") {
@@ -192,7 +194,9 @@ fn validate_license_representation(root: &Path) -> Result<(), String> {
         || !licensing.contains("commercial license")
         || !licensing.contains("Historical template grant")
     {
-        return Err("LICENSING.md is missing required current/historical licensing context".to_owned());
+        return Err(
+            "LICENSING.md is missing required current/historical licensing context".to_owned(),
+        );
     }
 
     let readme = read_utf8(root, "README.md")?;
@@ -213,10 +217,14 @@ fn validate_workflow_pin(root: &Path) -> Result<(), String> {
         .lines()
         .map(str::trim)
         .find_map(|line| line.strip_prefix(PREFIX))
-        .ok_or_else(|| "validation workflow does not call the accepted reusable workflow".to_owned())?;
+        .ok_or_else(|| {
+            "validation workflow does not call the accepted reusable workflow".to_owned()
+        })?;
 
     if revision.len() != 40 || !revision.bytes().all(|byte| byte.is_ascii_hexdigit()) {
-        return Err("validation workflow must pin the reusable workflow to a full commit SHA".to_owned());
+        return Err(
+            "validation workflow must pin the reusable workflow to a full commit SHA".to_owned(),
+        );
     }
 
     Ok(())
