@@ -95,8 +95,8 @@ impl ShaderDiagnostic {
 
 /// Ordinary public semantic result of one shader compilation invocation.
 ///
-/// The dependency-free semantic kernel defines these classes but does not yet implement a compiler
-/// path that produces them.
+/// The pinned exact-WGSL compiler realization produces these classes while keeping compiler
+/// implementation details private.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ShaderCompilationOutcome {
     /// One complete canonical artifact was formed.
@@ -111,8 +111,8 @@ pub enum ShaderCompilationOutcome {
 
 /// RunenShader implementation-defect boundary, separate from ordinary compilation outcomes.
 ///
-/// This type is intentionally not publicly constructible. A later compiler realization may return
-/// it when an internal invariant is violated; it must never be relabeled as user rejection,
+/// This type is intentionally not publicly constructible. The compiler realization returns it
+/// only when an internal invariant is violated; it must never be relabeled as user rejection,
 /// unsupported coverage, or ordinary tool failure.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ShaderInvariantError {
@@ -134,7 +134,7 @@ impl fmt::Display for ShaderInvariantError {
 
 impl std::error::Error for ShaderInvariantError {}
 
-/// Full public result shape for a future RunenShader compilation entry point.
+/// Full public result shape for the RunenShader compilation entry point.
 pub type ShaderCompilationResult = Result<ShaderCompilationOutcome, ShaderInvariantError>;
 
 #[cfg(test)]

@@ -18,7 +18,8 @@ impl ShaderFrontendProfile {
 /// RunenShader-owned identity for one accepted concrete compiler realization contract.
 ///
 /// This value identifies realization evidence. It does not expose or wrap a compiler-private
-/// object, and its presence does not imply that the realization is implemented by this crate yet.
+/// object; the selected realization is implemented by this crate behind the public compiler
+/// authority.
 #[non_exhaustive]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum ShaderCompilerRealization {

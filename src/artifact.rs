@@ -237,8 +237,8 @@ impl ExactWgslSourceMap {
 
 /// Accepted canonical shader artifact data.
 ///
-/// Ordinary callers cannot construct this type directly. A later accepted compiler realization
-/// forms it only after successful profile validation.
+/// Ordinary callers cannot construct this type directly. The pinned exact-WGSL compiler
+/// realization forms it only after successful profile validation.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ShaderArtifact {
     pub(crate) identity: ShaderArtifactIdentity,
