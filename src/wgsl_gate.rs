@@ -168,31 +168,48 @@ fn scan_extension_directive(
     }
 }
 
+/// Finds the boundary of a `diagnostic(...)` directive without interpreting its contents.
+///
+/// WGSL has no string literal syntax, so comment-aware parenthesis balancing is sufficient to
+/// locate the directive terminator while leaving severity/rule-name semantics to the real parser.
 fn scan_diagnostic_directive(source: &str, after_keyword: usize) -> Option<usize> {
     let mut cursor = skip_trivia(source, after_keyword)?;
     cursor = consume_ascii(source, cursor, b'(')?;
-    cursor = skip_trivia(source, cursor)?;
+    let mut depth = 1usize;
 
-    let (severity_end, _) = scan_ascii_identifier(source, cursor)?;
-    cursor = skip_trivia(source, severity_end)?;
-    cursor = consume_ascii(source, cursor, b',')?;
-    cursor = skip_trivia(source, cursor)?;
+    while cursor < source.len() {
+        let bytes = source.as_bytes();
+        if bytes.get(cursor..cursor + 2) == Some(b"//") {
+            cursor = skip_line_comment(source, cursor + 2)?;
+            continue;
+        }
+        if bytes.get(cursor..cursor + 2) == Some(b"/*") {
+            cursor = skip_block_comment(source, cursor)?;
+            continue;
+        }
 
-    let (rule_end, _) = scan_ascii_identifier(source, cursor)?;
-    cursor = skip_trivia(source, rule_end)?;
-    if source.as_bytes().get(cursor) == Some(&b'.') {
-        cursor = skip_trivia(source, cursor + 1)?;
-        let (member_end, _) = scan_ascii_identifier(source, cursor)?;
-        cursor = skip_trivia(source, member_end)?;
+        match bytes.get(cursor).copied() {
+            Some(b'(') => {
+                depth = depth.checked_add(1)?;
+                cursor += 1;
+            }
+            Some(b')') => {
+                depth -= 1;
+                cursor += 1;
+                if depth == 0 {
+                    cursor = skip_trivia(source, cursor)?;
+                    return consume_ascii(source, cursor, b';');
+                }
+            }
+            Some(_) => {
+                let ch = source.get(cursor..)?.chars().next()?;
+                cursor += ch.len_utf8();
+            }
+            None => return None,
+        }
     }
 
-    if source.as_bytes().get(cursor) == Some(&b',') {
-        cursor = skip_trivia(source, cursor + 1)?;
-    }
-
-    cursor = consume_ascii(source, cursor, b')')?;
-    cursor = skip_trivia(source, cursor)?;
-    consume_ascii(source, cursor, b';')
+    None
 }
 
 fn classify_extension_name(directive: ExactWgslDirectiveKind, name: &str) -> NameDisposition {
@@ -477,6 +494,13 @@ mod tests {
             "fn helper() {}\n"
         );
         assert_eq!(decision(source), ExactWgslGateDecision::Continue);
+
+        let unicode_rule = concat!(
+            "diagnostic(off, café.规则);\n",
+            "enable wgpu_mesh_shader;\n",
+            "fn helper() {}\n"
+        );
+        assert_rejected(unicode_rule, "wgpu_mesh_shader");
     }
 
     #[test]
