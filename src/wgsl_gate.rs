@@ -233,6 +233,7 @@ fn classify_extension_name(directive: ExactWgslDirectiveKind, name: &str) -> Nam
             | "texture_formats_tier1"
             | "linear_indexing"
             | "immediate_address_space"
+            | "fragment_depth"
             | "buffer_view" => NameDisposition::Unsupported,
             _ => NameDisposition::Rejected,
         },
@@ -439,6 +440,7 @@ mod tests {
             "texture_formats_tier1",
             "linear_indexing",
             "immediate_address_space",
+            "fragment_depth",
             "buffer_view",
         ] {
             assert_unsupported(&format!("requires {name};"), name);
