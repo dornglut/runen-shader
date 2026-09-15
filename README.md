@@ -10,9 +10,10 @@ concrete path is the pinned Naga 30.0.1 exact-WGSL realization.
 
 ## Maturity
 
-RunenShader is in R0 semantic-kernel work. Repository and normative specification
-authority are established, and the public crate exposes the semantic data kernel
-plus a stateful compiler for the pinned Naga 30.0.1 exact-WGSL realization.
+RunenShader has completed its R0 semantic-kernel outcome. Repository and normative
+specification authority are established, and the public crate exposes the semantic
+data kernel plus a stateful compiler for the accepted pinned Naga 30.0.1
+exact-WGSL production path.
 
 The implementation claims only the exact-WGSL surface demonstrated by its
 compiler conformance fixtures; broader frontend support is not implied.
