@@ -139,7 +139,7 @@ fn collections_aliases_visibility_and_public_reexports_are_realized() {
             1,
             11,
             1,
-            "import package::prelude::forwarded as alias;\nimport package::util::{VALUE, helper};\n@compute @workgroup_size(1) fn main() { let value = alias() + helper() + VALUE; }\n",
+            "import package::prelude::forwarded as forwarded_alias;\nimport package::util::{VALUE, helper};\n@compute @workgroup_size(1) fn main() { let value = forwarded_alias() + helper() + VALUE; }\n",
         ),
         vec![
             module(
