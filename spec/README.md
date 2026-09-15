@@ -37,8 +37,11 @@ implementations freedom to publish incompatible public semantics.
 - [Semantic model](semantic-model.md) — canonical identity, source snapshot,
   compilation, resolution, artifact, diagnostics, provenance, reproducibility,
   outcome, cache, and downstream-boundary semantics.
+- [Exact WGSL frontend profile](frontend-wgsl.md) — first concrete frontend
+  profile, exact-artifact rule, validation realization contract, source mapping,
+  outcome specialization, and conformance obligations.
 
 Normative files may link only to other files inside `spec/`. External language
-specifications and compiler documentation are inputs to concrete frontend
-profiles, not dependencies that silently modify this repository's normative
+specifications and compiler documentation are explicit inputs to concrete
+frontend profiles; they do not silently modify this repository's normative
 contract.
