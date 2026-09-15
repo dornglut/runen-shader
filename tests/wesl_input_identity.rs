@@ -145,15 +145,20 @@ fn uncovered_naga_realization_returns_unsupported_without_parsing_wesl_as_wgsl()
         )],
         vec![],
     );
-    let invocation = ShaderCompilationInvocation::new(
-        input,
-        ShaderCompilerRealization::Naga3001ExactWgslGateV1,
-    );
+    let invocation =
+        ShaderCompilationInvocation::new(input, ShaderCompilerRealization::Naga3001ExactWgslGateV1);
 
     let result = ShaderCompiler::new().compile(&invocation).unwrap();
     let ShaderCompilationOutcome::Unsupported(diagnostics) = result else {
         panic!("expected uncovered WESL realization to be unsupported");
     };
     assert_eq!(diagnostics.len(), 1);
-    assert_eq!(diagnostics[0].subject().unwrap().source_unit().diagnostic_raw(), 201);
+    assert_eq!(
+        diagnostics[0]
+            .subject()
+            .unwrap()
+            .source_unit()
+            .diagnostic_raw(),
+        201
+    );
 }
