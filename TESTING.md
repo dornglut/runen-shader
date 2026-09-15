@@ -6,39 +6,61 @@
 cargo validate
 ```
 
-This command is implemented by the repository-local `xtask` and is the merge
-readiness baseline for this template.
+This command is implemented by the repository-local `xtask` and is the single
+merge-readiness baseline for RunenShader.
 
 ## Baseline checks
 
 Validation fails closed when:
 
-- a required template authority file is missing;
+- required RunenShader authority files are missing;
+- removed template authority such as `BOOTSTRAP.md` reappears;
+- active repository surfaces retain template identity or Apache product-license
+  claims;
+- Cargo metadata and the lockfile disagree;
+- Markdown links are broken or normative `spec/` content escapes its authority
+  boundary;
+- repository text required by the validator is not valid UTF-8 or lacks a final
+  newline;
 - Rust formatting is not clean;
 - workspace tests fail;
 - Clippy emits warnings;
 - rustdoc emits warnings;
-- `git diff --check` reports whitespace errors;
+- Git whitespace checks fail;
 - validation changes repository state.
 
-The validator starts from a clean repository and verifies that the repository
-remains unchanged after the checks.
+The repository is intentionally small during bootstrap, but the semantic and
+repository-authority guards are real acceptance checks rather than placeholders.
 
-## CI
+## Focused validation
 
-The workflow in `.github/workflows/validation.yml` is intentionally thin. It
-pins the accepted `dornglut/github-workflows` reusable Rust validation workflow
-to an immutable commit and delegates meaning to `cargo +stable validate`.
+Focused commands may be used while developing a bounded change, for example:
 
-The shared workflow proves the exact caller feature head before validation and
-provisions stable plus any Cargo-declared `rust-version` values needed by the
-checked-out repository.
+```text
+cargo test --workspace --all-targets --locked
+cargo clippy --workspace --all-targets --locked -- -D warnings
+cargo doc --workspace --no-deps --locked
+```
 
-## Local versus independent evidence
+They do not replace `cargo validate`.
 
-Local validation is preparation. Pull-request acceptance requires independent
-repository-owned CI against the exact reviewed feature head.
+## CI and exact-head evidence
 
-Product-specific target matrices, dependency policy, benchmarks, native/browser
-proofs, and downstream conformance workloads do not belong in this generic
-baseline.
+`.github/workflows/validation.yml` is deliberately thin. It pins Dornglut's
+shared Rust validation workflow to an immutable commit and invokes the
+repository-owned command with read-only repository permission.
+
+Pull-request acceptance requires successful independent validation of the exact
+reviewed feature-head SHA. If the feature head moves, earlier validation and
+review evidence is stale and must not be reused.
+
+When a suitable local Rust executor is unavailable, hosted exact-head CI is the
+first executable compile/test gate; local/model inspection must be reported only
+as preparation, not as executable validation.
+
+## Future conformance
+
+Concrete shader frontends, public compilation APIs, downstream consumers,
+performance claims, and cross-toolchain reproducibility will add focused
+conformance evidence only when those capabilities are accepted. No such support
+is implied by the bootstrap specification alone.

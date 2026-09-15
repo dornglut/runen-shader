@@ -3,7 +3,7 @@
 version = 4
 
 [[package]]
-name = "rust-framework-template"
+name = "runen-shader"
 version = "0.0.0"
 
 [[package]]

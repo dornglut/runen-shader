@@ -1,5 +1,7 @@
+mod documentation;
+
 use std::{
-    env,
+    env, fs,
     path::{Path, PathBuf},
     process::{Command, Stdio},
 };
@@ -10,22 +12,44 @@ const REQUIRED_FILES: &[&str] = &[
     ".gitignore",
     "AGENTS.md",
     "ARCHITECTURE.md",
-    "BOOTSTRAP.md",
     "Cargo.lock",
     "Cargo.toml",
     "LICENSE",
+    "LICENSING.md",
     "README.md",
+    "ROADMAP.md",
+    "STATUS.md",
     "TESTING.md",
     "rust-toolchain.toml",
+    "spec/README.md",
+    "spec/semantic-model.md",
     "src/lib.rs",
     "xtask/Cargo.toml",
+    "xtask/src/documentation.rs",
     "xtask/src/main.rs",
 ];
 
+const ACTIVE_IDENTITY_FILES: &[&str] = &[
+    ".github/workflows/validation.yml",
+    "AGENTS.md",
+    "ARCHITECTURE.md",
+    "Cargo.toml",
+    "README.md",
+    "ROADMAP.md",
+    "STATUS.md",
+    "TESTING.md",
+    "spec/README.md",
+    "spec/semantic-model.md",
+    "src/lib.rs",
+];
+
+const GPL3_LICENSE_BLOB_SHA: &str = "f288702d2fa16d3cdf0035b15a9fcbc552cd88e7";
+
 fn main() {
-    let result = match env::args().nth(1).as_deref() {
-        Some("validate") => validate(),
-        _ => Err("usage: cargo xtask validate".to_owned()),
+    let mut arguments = env::args().skip(1);
+    let result = match (arguments.next().as_deref(), arguments.next()) {
+        (Some("validate"), None) => validate(),
+        _ => Err("usage: cargo validate".to_owned()),
     };
 
     if let Err(error) = result {
@@ -35,21 +59,27 @@ fn main() {
 }
 
 fn validate() -> Result<(), String> {
-    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .parent()
-        .expect("xtask manifest must have a workspace root")
-        .to_path_buf();
+    let root = repository_root()?;
+    let initial_state = git_status(&root)?;
 
     validate_required_files(&root)?;
-    let initial_state = git_status(&root)?;
-    if !initial_state.is_empty() {
-        return Err(format!(
-            "repository must be clean before validation:\n{initial_state}"
-        ));
-    }
+    validate_removed_template_authority(&root)?;
+    validate_repository_identity(&root)?;
+    validate_license_representation(&root)?;
+    validate_workflow_pin(&root)?;
+    documentation::validate(&root)?;
 
+    run(
+        &root,
+        "cargo",
+        &["metadata", "--format-version", "1", "--locked", "--no-deps"],
+    )?;
     run(&root, "cargo", &["fmt", "--all", "--", "--check"])?;
-    run(&root, "cargo", &["test", "--workspace", "--locked"])?;
+    run(
+        &root,
+        "cargo",
+        &["test", "--workspace", "--all-targets", "--locked"],
+    )?;
     run(
         &root,
         "cargo",
@@ -79,7 +109,15 @@ fn validate() -> Result<(), String> {
         ));
     }
 
+    println!("RunenShader repository validation passed");
     Ok(())
+}
+
+fn repository_root() -> Result<PathBuf, String> {
+    Path::new(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .map(Path::to_path_buf)
+        .ok_or_else(|| "xtask manifest must live at <repository>/xtask".to_owned())
 }
 
 fn validate_required_files(root: &Path) -> Result<(), String> {
@@ -89,8 +127,104 @@ fn validate_required_files(root: &Path) -> Result<(), String> {
             return Err(format!("required file is missing: {relative_path}"));
         }
     }
+    Ok(())
+}
+
+fn validate_removed_template_authority(root: &Path) -> Result<(), String> {
+    if root.join("BOOTSTRAP.md").exists() {
+        return Err("retired template authority must not exist: BOOTSTRAP.md".to_owned());
+    }
+    Ok(())
+}
+
+fn validate_repository_identity(root: &Path) -> Result<(), String> {
+    const FORBIDDEN: &[&str] = &["rust-framework-template", "Rust Framework Template"];
+
+    for relative_path in ACTIVE_IDENTITY_FILES {
+        let content = read_utf8(root, relative_path)?;
+        for marker in FORBIDDEN {
+            if content.contains(marker) {
+                return Err(format!(
+                    "active RunenShader surface retains template identity {marker:?}: {relative_path}"
+                ));
+            }
+        }
+        if content.contains("Apache-2.0") {
+            return Err(format!(
+                "active RunenShader surface retains Apache product-license claim: {relative_path}"
+            ));
+        }
+    }
+
+    let cargo = read_utf8(root, "Cargo.toml")?;
+    for required in [
+        "name = \"runen-shader\"",
+        "repository = \"https://github.com/dornglut/runen-shader\"",
+        "license = \"GPL-3.0-only\"",
+    ] {
+        if !cargo.contains(required) {
+            return Err(format!("Cargo.toml is missing accepted identity field: {required}"));
+        }
+    }
+    if cargo.contains("rust-version") {
+        return Err(
+            "Cargo.toml must not claim an MSRV until concrete RunenShader evidence accepts one"
+                .to_owned(),
+        );
+    }
+
+    let lock = read_utf8(root, "Cargo.lock")?;
+    if !lock.contains("name = \"runen-shader\"") || lock.contains("rust-framework-template") {
+        return Err("Cargo.lock does not match the RunenShader package identity".to_owned());
+    }
 
     Ok(())
+}
+
+fn validate_license_representation(root: &Path) -> Result<(), String> {
+    let license_sha = output(root, "git", &["hash-object", "LICENSE"])?;
+    if license_sha.trim() != GPL3_LICENSE_BLOB_SHA {
+        return Err("LICENSE does not match the accepted complete GPLv3 text".to_owned());
+    }
+
+    let licensing = read_utf8(root, "LICENSING.md")?;
+    if !licensing.contains("GPL-3.0-only")
+        || !licensing.contains("commercial license")
+        || !licensing.contains("Historical template grant")
+    {
+        return Err("LICENSING.md is missing required current/historical licensing context".to_owned());
+    }
+
+    let readme = read_utf8(root, "README.md")?;
+    for required in ["[GPL-3.0-only](LICENSE)", "[LICENSING.md](LICENSING.md)"] {
+        if !readme.contains(required) {
+            return Err(format!("README.md is missing license link: {required}"));
+        }
+    }
+
+    Ok(())
+}
+
+fn validate_workflow_pin(root: &Path) -> Result<(), String> {
+    const PREFIX: &str =
+        "uses: dornglut/github-workflows/.github/workflows/reusable-rust-cargo-validate.yml@";
+    let workflow = read_utf8(root, ".github/workflows/validation.yml")?;
+    let revision = workflow
+        .lines()
+        .map(str::trim)
+        .find_map(|line| line.strip_prefix(PREFIX))
+        .ok_or_else(|| "validation workflow does not call the accepted reusable workflow".to_owned())?;
+
+    if revision.len() != 40 || !revision.bytes().all(|byte| byte.is_ascii_hexdigit()) {
+        return Err("validation workflow must pin the reusable workflow to a full commit SHA".to_owned());
+    }
+
+    Ok(())
+}
+
+fn read_utf8(root: &Path, relative_path: &str) -> Result<String, String> {
+    fs::read_to_string(root.join(relative_path))
+        .map_err(|error| format!("failed to read {relative_path} as UTF-8: {error}"))
 }
 
 fn git_status(root: &Path) -> Result<String, String> {

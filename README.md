@@ -1,77 +1,72 @@
-# Rust Framework Template
+# RunenShader
 
-`dornglut/rust-framework-template` is a one-time bootstrap baseline for new
-Dornglut Rust framework repositories.
+RunenShader is Dornglut's standalone Rust framework for reusable shader-source and
+shader-compilation semantics.
 
-It provides a minimal repository shape, repository-owned validation entrypoint,
-bootstrap guidance, and licensing/provenance rules. It is not a product,
-framework runtime, or ongoing synchronization authority.
+It defines the stable source-to-artifact boundary used by renderers, compute
+consumers, and other tooling without making a renderer, GPU executor, filesystem,
+or compiler implementation the owner of shader-source semantics.
 
 ## Maturity
 
-This repository is intentionally minimal bootstrap infrastructure. It proves a
-working repository shape and validation baseline; it does not define a product
-runtime or public framework API.
+RunenShader is in semantic-kernel bootstrap. This revision establishes repository
+and normative specification authority, but it intentionally provides no shader
+compiler implementation and supports no concrete frontend yet.
+
+See [STATUS.md](STATUS.md) for durable maturity and [ROADMAP.md](ROADMAP.md) for
+outcome sequencing.
 
 ## Boundary
 
-The template owns only generic bootstrap infrastructure:
+RunenShader owns reusable contracts for:
 
-- Rust package and workspace conventions;
-- root architecture, testing, and agent entrypoints;
-- one canonical `cargo validate` command;
-- a thin immutable CI caller;
-- bootstrap guidance for identity, ownership, licensing, toolchain, settings,
-  validation extensions, conformance, provenance, and deviations.
+- logical shader package, module, and source-unit identity;
+- immutable source revisions and explicit source snapshots;
+- closed compilation inputs and deterministic dependency resolution;
+- frontend-profile and compiler-realization distinction;
+- compilation outcomes and source-facing diagnostics;
+- exact canonical WGSL artifact formation;
+- provenance, source mapping, and reproducibility evidence.
 
-Generated repositories own their implementation, public API, architecture,
-dependencies, compatibility, releases, and product-specific validation.
+RunenShader does not own GPU resources, program admission, bindings, pipelines,
+submission, renderer material or lighting semantics, application recovery,
+filesystem watching, hot-reload activation, or package-registry/network-fetch
+policy.
 
-## Bootstrap
-
-A repository created from this template must resolve its own:
-
-1. repository, package, and crate identity;
-2. profile, lifecycle, and contribution classification;
-3. public license class and required license files;
-4. product MSRV and toolchain;
-5. repository visibility, merge policy, branch protection, and security controls;
-6. canonical validation extensions;
-7. downstream conformance workload when a public framework contract exists;
-8. extraction and source provenance when applicable;
-9. every intentional deviation from this baseline.
-
-The template is irrelevant after bootstrap. Do not add synchronization or
-template-update machinery to generated repositories.
-
-See [BOOTSTRAP.md](BOOTSTRAP.md).
+The normative semantic contract lives under [spec/](spec/README.md). RunenShader
+and RunenGPU are sibling authorities: a consumer may explicitly submit the exact
+WGSL from a RunenShader artifact into a separately owned RunenGPU source-admission
+operation.
 
 ## Validation
 
-`cargo validate` is the single repository-owned validation command.
+```text
+cargo validate
+```
 
-It verifies the required template authority files, formatting, workspace tests,
-Clippy with warnings denied, rustdoc with warnings denied, Git whitespace, and
-unchanged repository state.
+is the single repository-owned merge-readiness command. CI is a thin immutable
+caller of that command. See [TESTING.md](TESTING.md).
 
-CI invokes the same command through the accepted immutable
-`dornglut/github-workflows` reusable Rust validation workflow.
+No minimum supported Rust version is claimed yet. The repository validates on the
+stable toolchain declared by [rust-toolchain.toml](rust-toolchain.toml); an MSRV
+will be accepted only from concrete product evidence.
 
-See [TESTING.md](TESTING.md).
-
-## Architecture and policy
+## Repository authority
 
 - [Architecture](ARCHITECTURE.md)
-- [Testing](TESTING.md)
-- [Bootstrap](BOOTSTRAP.md)
+- [Normative specification](spec/README.md)
+- [Roadmap](ROADMAP.md)
+- [Status](STATUS.md)
+- [Testing and validation](TESTING.md)
 - [Agent guide](AGENTS.md)
 - [Organization contribution guidance](https://github.com/dornglut/.github/blob/main/CONTRIBUTING.md)
 - [Organization security policy](https://github.com/dornglut/.github/blob/main/SECURITY.md)
 
+Repository profile: `rust-framework`. Lifecycle: `active`. Contribution mode:
+`owner-only`.
+
 ## License
 
-This template repository is available under the [Apache License 2.0](LICENSE).
-
-A generated repository must select its own product license before accepting
-substantive implementation. The template's Apache-2.0 license does not become
-the generated product's licensing authority.
+The current public RunenShader representation is
+[GPL-3.0-only](LICENSE). A separately negotiated commercial license may be
+available as described in [LICENSING.md](LICENSING.md).

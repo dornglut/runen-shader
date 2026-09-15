@@ -1,49 +1,87 @@
 # Architecture
 
-## Boundary
+## System boundary
 
-`rust-framework-template` is bootstrap infrastructure. Its purpose is to
-provide a minimal, reusable starting shape for a new Dornglut Rust framework
-repository.
+RunenShader is the standalone authority for reusable shader-source and
+shader-compilation semantics.
 
-It owns no runtime behavior, public product contract, domain model, renderer,
-GPU subsystem, ECS, service, application, or product data.
-
-## Repository shape
-
-The baseline consists of:
-
-- a tiny non-published root Rust library used to prove the package baseline;
-- a local `xtask` that owns canonical validation;
-- a thin immutable shared-workflow caller;
-- root agent, architecture, testing, and bootstrap documentation;
-- the repository's Apache-2.0 license.
-
-No empty taxonomy directories or product-specific modules are created.
-
-## Dependency direction
+Its canonical direction is:
 
 ```text
-repository source
-    └── root package
+consumer / authoring host
+    -> RunenShader semantic contracts
+        -> selected frontend realization
+            -> external compiler/tooling implementation
+        -> exact canonical WGSL artifact + RunenShader evidence
 
-validation authority
-    └── xtask
-          └── cargo / git commands
-
-CI orchestration
-    └── dornglut/github-workflows
-          └── cargo +stable validate
+consumer integration
+    -> RunenGPU source admission / renderer / other downstream authority
 ```
 
-The reusable workflow orchestrates validation but does not define its meaning.
-The `xtask` is repository-local validation authority.
+The second path is composition, not a dependency inside the RunenShader semantic
+core. RunenShader and RunenGPU are sibling frameworks.
 
-## Generated repositories
+## Semantic versus realization authority
 
-A generated repository replaces the placeholder package identity and source,
-selects its own license and toolchain contract, establishes its repository
-settings, and extends validation only for proven product-specific requirements.
+The normative semantic model is under [spec/](spec/README.md). It owns logical
+identity, immutable source revision meaning, explicit compilation input,
+dependency resolution, frontend-profile boundaries, outcome classes, canonical
+artifact formation, provenance, source mapping, and reproducibility.
 
-After bootstrap, the template is not an architectural dependency and must not
-remain a synchronization authority.
+Concrete compiler libraries, their private IR, reflection structures, filesystem
+resolvers, caches, thread scheduling, and process state are implementation
+realizations. They may implement accepted contracts but do not define them.
+
+No frontend implementation is accepted by this bootstrap revision.
+
+## Current repository shape
+
+The current source tree intentionally contains only:
+
+- an empty semantic root library whose crate documentation states the boundary;
+- the normative `spec/` authority;
+- root architecture, roadmap, status, testing, licensing, and agent entrypoints;
+- a repository-local `xtask` that owns merge-readiness validation;
+- a thin immutable CI caller.
+
+Shader compilation code will be added only by later issue-owned work after its
+frontend and public API boundary are accepted.
+
+## Documentation authority
+
+| Concern | Canonical location |
+| --- | --- |
+| normative shader semantics | `spec/` |
+| repository/system boundary | `ARCHITECTURE.md` |
+| durable outcome sequence | `ROADMAP.md` |
+| durable maturity/capability state | `STATUS.md` |
+| merge-readiness and evidence | `TESTING.md` plus repository validator |
+| executor rules | `AGENTS.md` |
+| public landing and navigation | `README.md` |
+| current licensing representation | `LICENSE` and `LICENSING.md` |
+| implementation and tests | Rust source/tests when accepted |
+| repository-local decision rationale | `docs/adr/` only when a real local ADR exists |
+| dated durable verification reports | `docs/reports/` only when such evidence is accepted |
+| live work state | GitHub issues, pull requests, and Projects |
+
+Do not create empty documentation taxonomies for symmetry. Normative `spec/`
+content must remain self-contained and may link only within `spec/`.
+
+## Dependency rules
+
+- The semantic core does not require RunenGPU, RunenRender, Runenwerk, or Runen
+  language packages.
+- A concrete frontend dependency is admitted only by accepted RunenShader work
+  that proves its supported profile and conformance.
+- Filesystem, registry, network, watcher, and hot-reload adapters are outside the
+  semantic core unless later accepted work defines an explicit boundary.
+- Downstream integrations map RunenShader products into downstream contracts;
+  they do not share identity or mutate RunenShader authority.
+
+## Failure boundary
+
+Compilation failures are typed by the normative outcome model. Invalid input,
+unsupported realization coverage, and operational tool failure remain distinct.
+An internal RunenShader invariant violation is an implementation defect and must
+fail closed rather than masquerade as an ordinary source error or publish an
+artifact.
