@@ -4,6 +4,8 @@
 pub enum ShaderFrontendProfile {
     /// Exact WGSL using the W3C Candidate Recommendation Draft dated 2026-08-17.
     WgslExact20260817,
+    /// Closed WESL composition pinned to the accepted 2026-08-22 WESL semantic revision.
+    WeslComposition20260822,
 }
 
 impl ShaderFrontendProfile {
@@ -11,6 +13,7 @@ impl ShaderFrontendProfile {
     pub const fn semantic_name(self) -> &'static str {
         match self {
             Self::WgslExact20260817 => "wgsl-exact-2026-08-17",
+            Self::WeslComposition20260822 => "wesl-composition-2026-08-22",
         }
     }
 }
@@ -45,6 +48,18 @@ impl ShaderCompilerRealization {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn accepted_frontend_profiles_have_stable_distinct_semantic_names() {
+        assert_eq!(
+            ShaderFrontendProfile::WgslExact20260817.semantic_name(),
+            "wgsl-exact-2026-08-17"
+        );
+        assert_eq!(
+            ShaderFrontendProfile::WeslComposition20260822.semantic_name(),
+            "wesl-composition-2026-08-22"
+        );
+    }
 
     #[test]
     fn profile_and_realization_are_distinct_semantic_values() {
