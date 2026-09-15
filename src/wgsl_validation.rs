@@ -8,12 +8,12 @@ pub(crate) fn parse_wgsl(source: &str) -> Result<naga::Module, naga::front::wgsl
 
 pub(crate) fn validate_wgsl(
     module: &naga::Module,
-) -> Result<(), naga::WithSpan<naga::valid::ValidationError>> {
+) -> Result<(), Box<naga::WithSpan<naga::valid::ValidationError>>> {
     let mut validator = naga::valid::Validator::new(
         naga::valid::ValidationFlags::all(),
         naga::valid::Capabilities::all(),
     );
     validator.subgroup_stages(naga::valid::ShaderStages::all());
     validator.subgroup_operations(naga::valid::SubgroupOperationSet::all());
-    validator.validate(module).map(|_| ())
+    validator.validate(module).map(|_| ()).map_err(Box::new)
 }

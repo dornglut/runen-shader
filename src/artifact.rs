@@ -17,27 +17,30 @@ use crate::source::ShaderSourceSnapshot;
 /// structurally by the exact closed compilation-input identity and compiler realization identity.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct ShaderArtifactIdentity {
-    compilation_input: ShaderCompilationInputIdentity,
+    compilation_input: Arc<ShaderCompilationInputIdentity>,
+    profile: ShaderFrontendProfile,
     realization: ShaderCompilerRealization,
 }
 
 impl ShaderArtifactIdentity {
     /// Derives artifact identity deterministically from one complete semantic invocation.
     pub fn for_invocation(invocation: &ShaderCompilationInvocation) -> Self {
+        let compilation_input = invocation.input().identity();
         Self {
-            compilation_input: invocation.input().identity(),
+            profile: compilation_input.profile(),
+            compilation_input: Arc::new(compilation_input),
             realization: invocation.realization(),
         }
     }
 
     /// Returns the compilation-input identity participating in this artifact identity.
     pub fn compilation_input(&self) -> ShaderCompilationInputIdentity {
-        self.compilation_input.clone()
+        self.compilation_input.as_ref().clone()
     }
 
     /// Returns the frontend-profile identity participating in this artifact identity.
     pub const fn profile(&self) -> ShaderFrontendProfile {
-        self.compilation_input.profile()
+        self.profile
     }
 
     /// Returns the compiler-realization identity participating in this artifact identity.
