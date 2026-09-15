@@ -9,9 +9,14 @@ or compiler implementation the owner of shader-source semantics.
 
 ## Maturity
 
-RunenShader is in semantic-kernel bootstrap. This revision establishes repository
-and normative specification authority, but it intentionally provides no shader
-compiler implementation and supports no concrete frontend yet.
+RunenShader is in R0 semantic-kernel work. Repository and normative specification
+authority are established, and the public crate now exposes the dependency-free
+semantic data kernel for logical identities, exact source snapshots, closed
+exact-WGSL inputs, artifact evidence, source mapping, and outcome types.
+
+The exact-WGSL frontend profile and Naga realization contract are selected by the
+normative specification, but no shader parser/compiler realization or frontend
+support is implemented yet.
 
 See [STATUS.md](STATUS.md) for durable maturity and [ROADMAP.md](ROADMAP.md) for
 outcome sequencing.

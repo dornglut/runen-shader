@@ -32,20 +32,37 @@ Concrete compiler libraries, their private IR, reflection structures, filesystem
 resolvers, caches, thread scheduling, and process state are implementation
 realizations. They may implement accepted contracts but do not define them.
 
-No frontend implementation is accepted by this bootstrap revision.
+The public Rust crate now realizes the dependency-free semantic data boundary,
+but no frontend compiler realization is accepted as implemented yet.
 
 ## Current repository shape
 
-The current source tree intentionally contains only:
+The current source tree contains:
 
-- an empty semantic root library whose crate documentation states the boundary;
+- a public dependency-free semantic data kernel for explicit identities, exact
+  source snapshots, closed exact-WGSL inputs/invocations, deterministic artifact
+  evidence, identity source mapping, diagnostics, and outcome classes;
+- no shader parser, compiler dependency, or compilation entry point yet;
 - the normative `spec/` authority;
 - root architecture, roadmap, status, testing, licensing, and agent entrypoints;
 - a repository-local `xtask` that owns merge-readiness validation;
 - a thin immutable CI caller.
 
-Shader compilation code will be added only by later issue-owned work after its
-frontend and public API boundary are accepted.
+Compiler realization code is admitted only by later issue-owned work that
+preserves this public semantic boundary rather than exposing compiler-private
+objects as authority.
+
+## Implementation boundary
+
+The root crate keeps implementation modules private and re-exports the accepted
+public semantic types. Opaque identity representation, storage choices, and
+module layout are implementation details unless `spec/` promotes a concrete
+boundary.
+
+Exact-WGSL artifact formation remains compiler-owned inside the crate: ordinary
+callers can inspect `ShaderArtifact` but cannot construct success-shaped artifact
+data directly. The later compiler realization will populate that type only after
+successful accepted-profile validation.
 
 ## Documentation authority
 
