@@ -4,8 +4,7 @@ use runen_shader::{
     ShaderArtifactSourceMap, ShaderByteRange, ShaderCompilationInput, ShaderCompilationInvocation,
     ShaderCompilationOutcome, ShaderCompiler, ShaderCompilerRealization, ShaderDiagnostic,
     ShaderFrontendProfile, ShaderModuleIdentity, ShaderPackageIdentity, ShaderSourceRevision,
-    ShaderSourceSnapshot, ShaderSourceUnitIdentity, ShaderWeslModuleBinding,
-    ShaderWeslModulePath,
+    ShaderSourceSnapshot, ShaderSourceUnitIdentity, ShaderWeslModuleBinding, ShaderWeslModulePath,
 };
 
 const MAIN: &str = "import package::math::add;\n@compute @workgroup_size(1) fn main() { let value = add(1u, 2u); }\n";
@@ -16,8 +15,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let package = ShaderPackageIdentity::try_from_raw(1).expect("nonzero package identity");
     let main_module = ShaderModuleIdentity::try_from_raw(2).expect("nonzero main module identity");
     let math_module = ShaderModuleIdentity::try_from_raw(3).expect("nonzero math module identity");
-    let main_unit = ShaderSourceUnitIdentity::try_from_raw(4).expect("nonzero main source identity");
-    let math_unit = ShaderSourceUnitIdentity::try_from_raw(5).expect("nonzero math source identity");
+    let main_unit =
+        ShaderSourceUnitIdentity::try_from_raw(4).expect("nonzero main source identity");
+    let math_unit =
+        ShaderSourceUnitIdentity::try_from_raw(5).expect("nonzero math source identity");
     let revision = ShaderSourceRevision::try_from_raw(1).expect("nonzero source revision");
 
     let root = ShaderWeslModuleBinding::new(
@@ -47,12 +48,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         Ok(ShaderCompilationOutcome::Failed(diagnostics)) => {
             return Err(unexpected_outcome("Failed", &diagnostics));
         }
-        Err(invariant) => return Err(format!("RunenShader invariant violation: {invariant}").into()),
+        Err(invariant) => {
+            return Err(format!("RunenShader invariant violation: {invariant}").into());
+        }
     };
 
     let wgsl = artifact.canonical_wgsl();
     if !wgsl.contains("fn main") || wgsl.contains("import ") {
-        return Err("WESL composition did not produce the expected import-free WGSL entry point".into());
+        return Err(
+            "WESL composition did not produce the expected import-free WGSL entry point".into(),
+        );
     }
     let provenance = artifact.provenance();
     let modules = provenance
@@ -78,7 +83,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // V1 does not claim precise transformed-byte attribution, even though provenance is complete.
     let map = artifact.source_map();
-    if !matches!(map, ShaderArtifactSourceMap::Unattributable { byte_len } if byte_len == wgsl.len()) {
+    if !matches!(map, ShaderArtifactSourceMap::Unattributable { byte_len } if byte_len == wgsl.len())
+    {
         return Err("WESL artifact did not report total unattributable mapping".into());
     }
     let full_range = ShaderByteRange::new(0, wgsl.len()).expect("non-reversed artifact range");

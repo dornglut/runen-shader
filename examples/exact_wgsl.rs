@@ -18,10 +18,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let source = ShaderSourceSnapshot::new(source_unit, revision, WGSL);
     let input = ShaderCompilationInput::exact_wgsl(package, module, source);
-    let invocation = ShaderCompilationInvocation::new(
-        input,
-        ShaderCompilerRealization::Naga3001ExactWgslGateV1,
-    );
+    let invocation =
+        ShaderCompilationInvocation::new(input, ShaderCompilerRealization::Naga3001ExactWgslGateV1);
     let mut compiler = ShaderCompiler::new();
     let artifact = match compiler.compile(&invocation) {
         Ok(ShaderCompilationOutcome::Accepted(artifact)) => artifact,
@@ -34,7 +32,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         Ok(ShaderCompilationOutcome::Failed(diagnostics)) => {
             return Err(unexpected_outcome("Failed", &diagnostics));
         }
-        Err(invariant) => return Err(format!("RunenShader invariant violation: {invariant}").into()),
+        Err(invariant) => {
+            return Err(format!("RunenShader invariant violation: {invariant}").into());
+        }
     };
 
     if artifact.canonical_wgsl() != WGSL {
@@ -67,7 +67,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     println!("Exact canonical WGSL:\n{}", artifact.canonical_wgsl());
-    println!("Exact mapping: {} bytes to source {source_unit} revision {revision}", WGSL.len());
+    println!(
+        "Exact mapping: {} bytes to source {source_unit} revision {revision}",
+        WGSL.len()
+    );
     Ok(())
 }
 
