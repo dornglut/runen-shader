@@ -12,7 +12,7 @@ consumer / authoring host
     -> RunenShader semantic contracts
         -> selected frontend realization
             -> external compiler/tooling implementation
-        -> exact canonical WGSL artifact + RunenShader evidence
+        -> canonical WGSL artifact + RunenShader evidence
 
 consumer integration
     -> RunenGPU source admission / renderer / other downstream authority
@@ -32,32 +32,49 @@ Concrete compiler libraries, their private IR, reflection structures, filesystem
 resolvers, caches, thread scheduling, and process state are implementation
 realizations. They may implement accepted contracts but do not define them.
 
-The public Rust crate realizes the semantic data boundary and the first concrete
-exact-WGSL compiler path. `ShaderCompiler` is the explicit stateful authority for
-the pinned Naga 30.0.1 realization; the private profile gate remains the
-RunenShader-owned admission evidence, while Naga parse and validation remain
-private realization work.
+The public Rust crate realizes the shared semantic data boundary and two accepted
+frontend paths through one stateful `ShaderCompiler`: exact WGSL through pinned
+Naga 30.0.1 and closed WESL composition through pinned `wesl-rs` 0.5.0 V1.
+The private RunenShader WGSL profile gate plus Naga parse/validation govern the
+exact path and independently readmit WESL-generated WGSL before artifact
+publication. WESL translation and resolution remain private realization work;
+neither compiler becomes normative language or RunenShader identity authority.
 
 ## Current repository shape
 
 The current source tree contains:
 
-- a public semantic data kernel for explicit identities, exact
-  source snapshots, closed exact-WGSL inputs/invocations, deterministic artifact
-  evidence, identity source mapping, diagnostics, and outcome classes;
-- one public stateful `ShaderCompiler` using the private exact-WGSL profile gate
-  and pinned Naga 30.0.1 parsing/validation;
-- exact source-byte artifact formation after successful gate reconciliation,
-  parsing, and semantic validation;
+- a public semantic data kernel for explicit package/module/source identities,
+  exact source snapshots, closed exact-WGSL and multi-source WESL inputs,
+  deterministic artifact and provenance evidence, truthful source-mapping
+  classifications, diagnostics, and outcome classes;
+- one public stateful `ShaderCompiler` with closed dispatch to the Naga 30.0.1
+  exact-WGSL and `wesl-rs` 0.5.0 WESL composition realizations;
+- exact-WGSL source-byte artifact formation with total identity source mapping
+  after successful private gate reconciliation, parsing, and validation;
+- WESL composition of explicitly admitted single-package in-memory modules with
+  explicit conditional-feature values into generated WGSL, independently checked
+  by the RunenShader WGSL gate and pinned Naga validator before publication;
+- complete participating-source provenance for WESL and a conservative total
+  `Unattributable` transformed-artifact map rather than unproven byte attribution;
 - the normative `spec/` authority;
 - root architecture, roadmap, status, testing, licensing, and agent entrypoints;
 - a repository-local `xtask` that owns merge-readiness validation;
 - a thin immutable CI caller.
 
-The compiler realization preserves this public boundary: it records source-byte
-observations only in the compiler instance, translates public Naga spans into
-RunenShader diagnostics, and never exposes or stores Naga modules, IR, reflection,
-or a WGSL writer path in accepted artifacts.
+The WESL realization consults only the closed in-memory resolution table after
+admission; filesystem contents, cwd, environment, `wesl.toml`, registries,
+network lookup, and package dependencies are not compilation authority.
+Conditional attributes on imports are outside the accepted initial profile.
+Profile-valid WGSL global-directive composition affected by upstream
+`wesl-rs` issue #85 remains `Unsupported`; the realization does not claim full
+coverage of the accepted WESL profile.
+
+Both compiler paths keep source-byte observations in the compiler instance,
+translate upstream diagnostics into RunenShader-owned logical subjects where
+truthfully possible, and never expose or store upstream compiler IR, reflection,
+resolver handles, or source-map objects in accepted artifacts. The exact-WGSL
+path uses no WGSL writer or re-emission.
 
 ## Implementation boundary
 
@@ -66,11 +83,14 @@ public semantic types. Opaque identity representation, storage choices, and
 module layout are implementation details unless `spec/` promotes a concrete
 boundary.
 
-Exact-WGSL artifact formation remains compiler-owned inside the crate: ordinary
-callers can inspect `ShaderArtifact` but cannot construct success-shaped artifact
-data directly. The pinned realization populates that type only after successful
-profile-gate reconciliation, Naga parsing, and semantic validation, using the
-unchanged source bytes and the existing structural identity/provenance/map types.
+Canonical WGSL artifact formation remains compiler-owned inside the crate:
+ordinary callers can inspect `ShaderArtifact` but cannot construct
+success-shaped artifact data directly. The exact-WGSL realization publishes
+unchanged admitted source bytes and identity mapping; the WESL realization
+publishes deterministic generated WGSL only after independent pinned-WGSL
+validation, with full closed-input provenance and total unattributable mapping.
+Neither artifact implies GPU program, binding, pipeline, device, or execution
+admission: downstream consumers map the product into their own contracts.
 
 ## Documentation authority
 
