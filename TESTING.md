@@ -44,6 +44,21 @@ cargo doc --workspace --no-deps --locked
 
 They do not replace `cargo validate`.
 
+## Executable public-API examples
+
+From the repository root, run the maintained, self-contained compiler examples with:
+
+```text
+cargo run --locked --example exact_wgsl
+cargo run --locked --example wesl_composition
+```
+
+The root Cargo manifest registers both examples with `test = true` and
+`harness = false`. Thus the existing workspace `cargo test --all-targets` baseline
+executes each example's ordinary `main` and its artifact assertions rather than
+only compiling the examples. These samples demonstrate compilation and evidence,
+not GPU execution; the conformance tests below remain the behavior authority.
+
 ## CI and exact-head evidence
 
 `.github/workflows/validation.yml` is deliberately thin. It pins Dornglut's
