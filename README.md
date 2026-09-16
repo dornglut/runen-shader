@@ -5,19 +5,26 @@ shader-compilation semantics.
 
 It defines the stable source-to-artifact boundary used by renderers, compute
 consumers, and other tooling without making a renderer, GPU executor, filesystem,
-or compiler implementation the owner of shader-source semantics. The first
-concrete path is the pinned Naga 30.0.1 exact-WGSL realization.
+or compiler implementation the owner of shader-source semantics. Its concrete
+compiler paths are pinned Naga 30.0.1 exact WGSL and bounded `wesl-rs` 0.5.0
+WESL composition.
 
 ## Maturity
 
 RunenShader has completed its R0 semantic-kernel outcome. Repository and normative
 specification authority are established, and the public crate exposes the semantic
-data kernel plus a stateful compiler for the accepted pinned Naga 30.0.1
-exact-WGSL production path.
+data kernel plus a stateful compiler for the accepted exact-WGSL and closed WESL
+composition profiles.
 
-The implementation claims only the exact-WGSL surface demonstrated by its
-compiler conformance fixtures; broader frontend support is not implied.
+The exact-WGSL path preserves source bytes and identity source mapping. The WESL
+path translates an explicit single-package, in-memory module set with explicit
+conditional-feature values into generated canonical WGSL; its V1 artifact map is
+total but `Unattributable`. The pinned WESL profile is broader than this first
+realization: profile-valid global-directive composition affected by upstream
+`wesl-rs` issue #85 remains `Unsupported`, not silently accepted.
 
+Only the frontend surfaces demonstrated by their respective compiler conformance
+fixtures are implemented. Neither path implies downstream GPU/device admission.
 See [STATUS.md](STATUS.md) for durable maturity and [ROADMAP.md](ROADMAP.md) for
 outcome sequencing.
 
@@ -30,7 +37,7 @@ RunenShader owns reusable contracts for:
 - closed compilation inputs and deterministic dependency resolution;
 - frontend-profile and compiler-realization distinction;
 - compilation outcomes and source-facing diagnostics;
-- exact canonical WGSL artifact formation;
+- canonical WGSL artifact formation, exact or generated according to the profile;
 - provenance, source mapping, and reproducibility evidence.
 
 RunenShader does not own GPU resources, program admission, bindings, pipelines,
