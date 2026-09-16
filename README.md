@@ -40,10 +40,10 @@ cargo run --locked --example wesl_composition
 The [exact-WGSL example](examples/exact_wgsl.rs) compiles an explicit in-memory
 source snapshot and prints byte-identical canonical WGSL with its exact source
 mapping. The [WESL example](examples/wesl_composition.rs) composes two explicitly
-supplied in-memory modules and prints generated WGSL, complete participating-module
-provenance, and its conservative `Unattributable` mapping. Example-local identity
-numbers represent distinct logical source/module identities; they are not paths,
-hashes, timestamps, or persistent encodings.
+supplied in-memory modules, prints generated WGSL, checks complete participating-
+module provenance, and prints its conservative `Unattributable` mapping.
+Example-local identity numbers represent distinct logical source/module identities;
+they are not paths, hashes, timestamps, or persistent encodings.
 
 The examples compile shaders; they do not create a GPU program or render an image.
 The supported profiles and limitations are recorded in [STATUS.md](STATUS.md) and
